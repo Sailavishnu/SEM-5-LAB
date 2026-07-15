@@ -1,62 +1,47 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <math.h>
+
+#define N 10
 
 int main() {
-    int n;
-    
-    printf("Enter n: ");
-    scanf("%d", &n);
+    int arr[N];
 
-    // P1 forks P2 (for primes)
-    if (fork() == 0) {
-        // Inside P2 process
-        printf("\nIn P2 (PID = %d, PPID = %d)\n", getpid(), getppid());
-        printf("First %d prime numbers: ", n);
+    printf("Enter %d integers:\n", N);
+    for (int i = 0; i < N; i++) scanf("%d", &arr[i]);
 
-        int count = 0, num = 2;
-        while (count < n) {
-            int prime = 1;
-            // Check divisibility up to sqrt(num)
-            for (int i = 2; i <= sqrt(num); i++) {
-                if (num % i == 0) {
-                    prime = 0;
-                    break;
+    pid_t c1 = fork();
+
+    if (c1 == 0) {
+        // Child 1 - median
+        for (int i = 0; i < N-1; i++)
+            for (int j = 0; j < N-i-1; j++)
+                if (arr[j] > arr[j+1]) {
+                    int t = arr[j]; arr[j] = arr[j+1]; arr[j+1] = t;
                 }
-            }
-            if (prime) {
-                printf("%d ", num);
-                count++;
-            }
-            num++;
-        }
-        printf("\n");
-        exit(0);
-    } else {
-        // Back in P1, fork P3 (for fibonacci)
-        if (fork() == 0) {
-            // Inside P3 process
-            printf("In P3 (PID = %d, PPID = %d)\n", getpid(), getppid());
-            printf("First %d fibonacci numbers: ", n);
 
-            int a = 0, b = 1, c;
-            // CORRECTED: was "i < num/2" - should be "i < n"
-            for (int i = 0; i < n; i++) {
-                printf("%d ", a);
-                c = a + b;
-                a = b;
-                b = c;
-            }
-            printf("\n");
-            exit(0);
-        } else {
-            // P1 waits for both children
-            wait(NULL);
-            wait(NULL);
-            printf("\nBoth child processes completed.\n");
-        }
+        float med = (N % 2) ? arr[N/2] : (arr[N/2-1] + arr[N/2]) / 2.0;
+        printf("Child1: Median = %.2f\n", med);
+        exit(0);
     }
+
+    pid_t c2 = fork();
+
+    if (c2 == 0) {
+        // Child 2 - variance
+        float sum = 0, mean, var = 0;
+        for (int i = 0; i < N; i++) sum += arr[i];
+        mean = sum / N;
+
+        for (int i = 0; i < N; i++) var += (arr[i]-mean)*(arr[i]-mean);
+        var /= N;
+
+        printf("Child2: Variance = %.2f\n", var);
+        exit(0);
+    }
+
+    wait(NULL);
+    wait(NULL);
 
     return 0;
 }
