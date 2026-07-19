@@ -124,8 +124,8 @@ int main()
             return 0;
         }
 
-        int max1 = INT_MIN;
-        int max2 = INT_MIN;
+        int max1 = arr[0];
+        int max2 = arr[0];
 
         for (int i = 0; i < n; i++)
         {
@@ -140,7 +140,7 @@ int main()
             }
         }
 
-        if (max2 == INT_MIN)
+        if (max2 == arr[0] && max1 == arr[0])
             printf("Second highest does not exist.\n");
         else
             printf("Second highest = %d\n", max2);
