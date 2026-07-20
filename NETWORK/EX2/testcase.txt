@@ -1,0 +1,158 @@
+================================================================
+ NETWORK LAB - ERROR DETECTION TECHNIQUES : TEST CASES & ANSWERS
+ (Verified against main.c program output)
+================================================================
+
+Legend: Each technique has NO-ERROR and ERROR cases, tested with
+inputs "Hi" (2 chars) and "A" (1 char). ASCII->binary via convert.h.
+
+
+----------------------------------------------------------------
+1) 1D PARITY  (Program now ASKS which scheme to use: Even or Odd)
+   Flow: data_to_send = msg(m) + parity(p)
+   EVEN scheme -> total 1's (data+parity) must be EVEN  for No Error
+   ODD  scheme -> total 1's (data+parity) must be ODD   for No Error
+   All 4 combinations covered below (input = "Hi", 0100100001101001,
+   which has 6 ones -> already even).
+----------------------------------------------------------------
+
+TEST 1.1 : EVEN parity | No error
+  Message (m)          : 0100100001101001   (6 ones -> already even)
+  Parity bit (p)       : 0   (kept even)
+  Data sent (m+p)      : 01001000011010010
+  Received (no flip)   : 01001000011010010  -> total 1's = 6 (even)
+  ANSWER                : NO ERROR DETECTED -> Recovered: "Hi"
+
+TEST 1.2 : EVEN parity | Error at bit position 0
+  Data sent            : 01001000011010010
+  Received (bit0 flip) : 11001000011010010  -> total 1's = 7 (odd)
+  ANSWER                : ERROR DETECTED   (odd count breaks even scheme)
+
+TEST 1.3 : ODD parity | No error
+  Message (m)          : 0100100001101001   (6 ones -> already even, need odd)
+  Parity bit (p)       : 1   (forces total to odd)
+  Data sent (m+p)      : 01001000011010011
+  Received (no flip)   : 01001000011010011  -> total 1's = 7 (odd)
+  ANSWER                : NO ERROR DETECTED -> Recovered: "Hi"
+
+TEST 1.4 : ODD parity | Error at bit position 0
+  Data sent            : 01001000011010011
+  Received (bit0 flip) : 11001000011010011  -> total 1's = 8 (even)
+  ANSWER                : ERROR DETECTED   (even count breaks odd scheme)
+
+
+----------------------------------------------------------------
+2) 2D PARITY  (Same Even/Odd scheme choice, applied to every
+   row and every column; matrix flattened row-major to transmit)
+----------------------------------------------------------------
+
+TEST 2.1 : EVEN parity | No error   (Input = "Hi")
+  Matrix rows (8 data bits + row-parity):
+     010010000
+     011010010
+  Column parity row (+corner)  : 001000010
+  Data sent (flattened)        : 010010000011010010001000010
+  Received (no flip)           : same as sent
+  ANSWER                        : NO ERROR DETECTED -> Recovered: "Hi"
+
+TEST 2.2 : EVEN parity | Error at bit position 4
+  Data sent            : 010010000011010010001000010
+  Received (bit4 flip) : 010000000011010010001000010
+  ANSWER                : ERROR DETECTED (Row 0 mismatch, Column 4 mismatch)
+
+TEST 2.3 : ODD parity | No error   (Input = "Hi")
+  Matrix rows (8 data bits + row-parity):
+     010010001
+     011010011
+  Column parity row (+corner)  : 110111101
+  Data sent (flattened)        : 010010001011010011110111101
+  Received (no flip)           : same as sent
+  ANSWER                        : NO ERROR DETECTED -> Recovered: "Hi"
+
+TEST 2.4 : ODD parity | Error at bit position 4
+  Data sent            : 010010001011010011110111101
+  Received (bit4 flip) : 010000001011010011110111101
+  ANSWER                : ERROR DETECTED (Row 0 mismatch, Column 4 mismatch)
+
+
+----------------------------------------------------------------
+3) CRC  (Generator G(x) = 1001 i.e. x^3+1, default if "0" entered)
+   Flow: dividend = data + (r zeros), r = len(G)-1
+         CRC = remainder of dividend / G  (mod-2 XOR division)
+         Transmitted = data + CRC
+   Receiver: divide received / G -> remainder = 0 means No Error
+----------------------------------------------------------------
+
+TEST 3.1 : Input = "Hi" | Generator = 1001 | No error
+  Source data (D)      : 0100100001101001
+  D padded with 3 zeros: 0100100001101001000
+  CRC remainder        : 101
+  Transmitted (D+CRC)  : 0100100001101001101
+  Received (no flip)   : 0100100001101001101
+  Remainder on receive : 000
+  ANSWER                : NO ERROR DETECTED -> Recovered: "Hi"
+
+TEST 3.2 : Input = "Hi" | Generator = 1001 | Error at bit position 1
+  Transmitted          : 0100100001101001101
+  Received (bit1 flip) : 0000100001101001101
+  Remainder on receive : 100
+  ANSWER                : ERROR DETECTED
+
+TEST 3.3 : Input = "A" | Generator = 1001 | No error
+  Source data (D)      : 01000001
+  D padded with 3 zeros: 01000001000
+  CRC remainder        : 000
+  Transmitted (D+CRC)  : 01000001000
+  Received (no flip)   : 01000001000
+  Remainder on receive : 000
+  ANSWER                : NO ERROR DETECTED -> Recovered: "A"
+
+TEST 3.4 : Input = "A" | Generator = 1001 | Error at bit position 4
+  Transmitted          : 01000001000
+  Received (bit4 flip) : 01001001000
+  Remainder on receive : 001
+  ANSWER                : ERROR DETECTED
+
+
+----------------------------------------------------------------
+4) CHECKSUM  (Block size n=8 default, 1's complement addition
+   with end-around carry; checksum = complement of block-sum)
+   Receiver: sum all blocks incl. checksum, complement -> 0 = No Error
+----------------------------------------------------------------
+
+TEST 4.1 : Input = "Hi" | n=8 | No error
+  Data (padded)        : 0100100001101001
+  Block 1              : 01001000
+  Block 2              : 01101001
+  Sum of blocks        : 10110001
+  Checksum (~sum)      : 01001110
+  Transmitted (D+chk)  : 010010000110100101001110
+  Received (no flip)   : 010010000110100101001110
+  Receiver checksum    : 00000000
+  ANSWER                : NO ERROR DETECTED -> Recovered: "Hi"
+
+TEST 4.2 : Input = "Hi" | n=8 | Error at bit position 2
+  Transmitted          : 010010000110100101001110
+  Received (bit2 flip) : 011010000110100101001110
+  Receiver checksum    : 11011111
+  ANSWER                : ERROR DETECTED
+
+TEST 4.3 : Input = "A" | n=8 | No error
+  Data                 : 01000001
+  Block 1              : 01000001
+  Sum of blocks        : 01000001
+  Checksum (~sum)      : 10111110
+  Transmitted (D+chk)  : 0100000110111110
+  Received (no flip)   : 0100000110111110
+  Receiver checksum    : 00000000
+  ANSWER                : NO ERROR DETECTED -> Recovered: "A"
+
+TEST 4.4 : Input = "A" | n=8 | Error at bit position 5
+  Transmitted          : 0100000110111110
+  Received (bit5 flip) : 0100010110111110
+  Receiver checksum    : 11111011
+  ANSWER                : ERROR DETECTED
+
+================================================================
+ END OF FILE
+================================================================
