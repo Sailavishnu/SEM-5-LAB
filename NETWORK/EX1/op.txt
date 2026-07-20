@@ -1,0 +1,254 @@
+[24bcs058@mepcolinux ex1]$./out
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 1
+
+--- BIT STUFFING CONFIGURATION ---
+Enter the data input string: Hi
+
+--- TRANSMITTER SIDE ---
+Input String : Hi
+Original Bin : 0100100001101001
+Stuffed Bin  : 0100100001101001
+Framed Bin   : 01111110010010000110100101111110
+
+Do you want to flip a bit to simulate a network error? (1 = Yes, 0 = No): 0
+
+--- RECEIVER SIDE ---
+Destuffed data: 0100100001101001
+Output Text  : Hi
+Data matches perfectly!
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 1
+
+--- BIT STUFFING CONFIGURATION ---
+Enter the data input string: Hi?
+
+--- TRANSMITTER SIDE ---
+Input String : Hi?
+Original Bin : 010010000110100100111111
+Stuffed Bin  : 0100100001101001001111101
+Framed Bin   : 01111110010010000110100100111110101111110
+
+Do you want to flip a bit to simulate a network error? (1 = Yes, 0 = No): 0
+
+--- RECEIVER SIDE ---
+Destuffed data: 010010000110100100111111
+Output Text  : Hi?
+Data matches perfectly!
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 1
+
+--- BIT STUFFING CONFIGURATION ---
+Enter the data input string: ?HI
+
+--- TRANSMITTER SIDE ---
+Input String : ?HI
+Original Bin : 001111110100100001001001
+Stuffed Bin  : 0011111010100100001001001
+Framed Bin   : 01111110001111101010010000100100101111110
+
+Do you want to flip a bit to simulate a network error? (1 = Yes, 0 = No): 1
+Enter bit index to flip (0 to 40): 16
+Bit at index 16 has been flipped successfully!
+Corrupted Bin: 01111110001111100010010000100100101111110
+
+--- RECEIVER SIDE ---
+Actual data:    01111110001111101010010000100100101111110
+Changed data:   01111110001111100010010000100100101111110
+Both don't match, so message discarded.
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 2
+
+--- BYTE STUFFING CONFIGURATION ---
+Enter Start of Frame (Press 1 for default 01111110): 1
+Enter End of Frame (Press 1 for default 01111110): 1
+Enter Escape byte (8 bits): 01000101
+Enter the data input string: AB
+
+--- TRANSMITTER SIDE ---
+SOF  = 01111110
+EOF  = 01111110
+Esc  = 01000101
+Original data: 01000001 01000010
+Stuffed data : 01000001 01000010
+Framed data  : 01111110 01000001 01000010 01111110
+
+Do you want to corrupt a byte to simulate a network error? (1 = Yes, 0 = No): 0
+
+--- RECEIVER SIDE ---
+Destuffed data: 01000001 01000010
+Output Text   : AB
+Data matches perfectly!
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 2
+
+--- BYTE STUFFING CONFIGURATION ---
+Enter Start of Frame (Press 1 for default 01111110): 1
+Enter End of Frame (Press 1 for default 01111110): 1
+Enter Escape byte (8 bits): 01000101
+Enter the data input string: AEB
+
+--- TRANSMITTER SIDE ---
+SOF  = 01111110
+EOF  = 01111110
+Esc  = 01000101
+Original data: 01000001 01000101 01000010
+Stuffed data : 01000001 01000101 01000101 01000010
+Framed data  : 01111110 01000001 01000101 01000101 01000010 01111110
+
+Do you want to corrupt a byte to simulate a network error? (1 = Yes, 0 = No): 0
+
+--- RECEIVER SIDE ---
+Destuffed data: 01000001 01000101 01000010
+Output Text   : AEB
+Data matches perfectly!
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 2
+
+--- BYTE STUFFING CONFIGURATION ---
+Enter Start of Frame (Press 1 for default 01111110): 1
+Enter End of Frame (Press 1 for default 01111110): 1
+Enter Escape byte (8 bits): 01000101
+Enter the data input string: AFB
+
+--- TRANSMITTER SIDE ---
+SOF  = 01111110
+EOF  = 01111110
+Esc  = 01000101
+Original data: 01000001 01111110 01000010
+Stuffed data : 01000001 01000101 01111110 01000010
+Framed data  : 01111110 01000001 01000101 01111110 01000010 01111110
+
+Do you want to corrupt a byte to simulate a network error? (1 = Yes, 0 = No): 0
+
+--- RECEIVER SIDE ---
+Destuffed data: 01000001 01111110 01000010
+Output Text   : ASB
+Data matches perfectly!
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 2
+
+--- BYTE STUFFING CONFIGURATION ---
+Enter Start of Frame (Press 1 for default 01111110): 1
+Enter End of Frame (Press 1 for default 01111110): 1
+Enter Escape byte (8 bits): 01000101
+Enter the data input string: AEFB
+
+--- TRANSMITTER SIDE ---
+SOF  = 01111110
+EOF  = 01111110
+Esc  = 01000101
+Original data: 01000001 01000101 01111110 01000010
+Stuffed data : 01000001 01000101 01000101 01000101 01111110 01000010
+Framed data  : 01111110 01000001 01000101 01000101 01000101 01111110 01000010 01111110
+
+Do you want to corrupt a byte to simulate a network error? (1 = Yes, 0 = No): 0
+
+--- RECEIVER SIDE ---
+Destuffed data: 01000001 01000101 01111110 01000010
+Output Text   : AESB
+Data matches perfectly!
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 2
+
+--- BYTE STUFFING CONFIGURATION ---
+Enter Start of Frame (Press 1 for default 01111110): 1
+Enter End of Frame (Press 1 for default 01111110): 1
+Enter Escape byte (8 bits): 01000101
+Enter the data input string: AEEB
+
+--- TRANSMITTER SIDE ---
+SOF  = 01111110
+EOF  = 01111110
+Esc  = 01000101
+Original data: 01000001 01000101 01000101 01000010
+Stuffed data : 01000001 01000101 01000101 01000101 01000101 01000010
+Framed data  : 01111110 01000001 01000101 01000101 01000101 01000101 01000010 01111110
+
+Do you want to corrupt a byte to simulate a network error? (1 = Yes, 0 = No): 0
+
+--- RECEIVER SIDE ---
+Destuffed data: 01000001 01000101 01000101 01000010
+Output Text   : AEEB
+Data matches perfectly!
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 2
+
+--- BYTE STUFFING CONFIGURATION ---
+Enter Start of Frame (Press 1 for default 01111110): 1
+Enter End of Frame (Press 1 for default 01111110): 1
+Enter Escape byte (8 bits): 01000101
+Enter the data input string: A
+
+--- TRANSMITTER SIDE ---
+SOF  = 01111110
+EOF  = 01111110
+Esc  = 01000101
+Original data: 01000001
+Stuffed data : 01000001
+Framed data  : 01111110 01000001 01111110
+
+Do you want to corrupt a byte to simulate a network error? (1 = Yes, 0 = No): 1
+Enter byte index to change (0 to 2): 0
+Enter new decimal value for this byte (0-255): 65
+Byte at index 0 altered successfully!
+Corrupted data: 01000001 01000001 01111110
+
+--- RECEIVER SIDE ---
+Actual data:    SAS
+Changed data:   AAS
+Both don't match, so message discarded.
+
+1. Bit Stuffing
+2. Byte Stuffing
+3. Exit
+Enter your choice (1, 2, or 3): 2
+
+--- BYTE STUFFING CONFIGURATION ---
+Enter Start of Frame (Press 1 for default 01111110): 00100100
+Enter End of Frame (Press 1 for default 01111110): 00100100
+Enter Escape byte (8 bits): 01000101
+Enter the data input string: AB
+
+--- TRANSMITTER SIDE ---
+SOF  = 00100100
+EOF  = 00100100
+Esc  = 01000101
+Original data: 01000001 01000010
+Stuffed data : 01000001 01000010
+Framed data  : 00100100 01000001 01000010 00100100
+
+Do you want to corrupt a byte to simulate a network error? (1 = Yes, 0 = No): 0
+
+--- RECEIVER SIDE ---
+Destuffed data: 01000001 01000010
+Output Text   : AB
+Data matches perfectly!
+
