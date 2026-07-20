@@ -6,25 +6,17 @@
 #define MAX_BITS 1000
 #define MAX_BYTES 500
 
-// Shared memory arrays for protocols
 int data[MAX_BITS], stuffed[MAX_BITS], destuffed[MAX_BITS];
 int dataBytes[MAX_BYTES], stuffedBytes[MAX_BYTES], framedBytes[MAX_BYTES], destuffedBytes[MAX_BYTES];
-
-// Bit stuffing markers
 int flag[] = {0,1,1,1,1,1,1,0};
 int flagLen = 8;
-
-// Byte stuffing markers
 int flagByte, escByte;
-
-// ========== UTILITY FUNCTIONS ==========
 
 void printBits(char *label, int arr[], int n) {
     int i;
     printf("%s", label);
     for (i = 0; i < n; i++) {
         printf("%d", arr[i]);
-        // Add space after every 8 bits for readability
         if ((i + 1) % 8 == 0 && i != n - 1) {
             printf(" ");
         }
@@ -49,8 +41,6 @@ void printBytesAsBinary(char *label, int arr[], int n) {
     printf("\n");
 }
 
-// ========== BIT STUFFING FUNCTION ==========
-
 void bitStuffing() {
     char inputString[MAX_STR];
     int ascii_arr[MAX_STR];
@@ -66,15 +56,14 @@ void bitStuffing() {
     int out_char_count = 0;
     char outputString[MAX_STR];
     int framed[MAX_BITS];
+    int originalFramedBackup[MAX_BITS];
 
     printf("\n--- BIT STUFFING CONFIGURATION ---\n");
     printf("Enter the data input string: ");
-    scanf("%s", inputString);
+    scanf("%99s", inputString);
 
-    // 1. Convert input text to raw ASCII array
     str_to_ascii(inputString, ascii_arr, &str_len);
 
-    // 2. Unpack ASCII integers into sequential flat bit arrays
     for (i = 0; i < str_len; i++) {
         ascii_to_bin((char)ascii_arr[i], bin_str);
         for (b = 0; b < 8; b++) {
@@ -86,7 +75,6 @@ void bitStuffing() {
     printf("Input String : %s\n", inputString);
     printBits("Original Bin : ", data, n);
 
-    // ---- Bit stuffing logic ----
     ones = 0;
     j = 0;
     for (i = 0; i < n; i++) {
@@ -100,7 +88,6 @@ void bitStuffing() {
     stuffedLen = j;
     printBits("Stuffed Bin  : ", stuffed, stuffedLen);
 
-    // ---- Framing logic ----
     k = 0;
     for (i = 0; i < flagLen; i++) framed[k++] = flag[i];
     for (i = 0; i < stuffedLen; i++) framed[k++] = stuffed[i];
@@ -108,52 +95,87 @@ void bitStuffing() {
     framedLen = k;
     printBits("Framed Bin   : ", framed, framedLen);
 
-    printf("\n--- RECEIVER SIDE ---\n");
+    for (i = 0; i < framedLen; i++) {
+        originalFramedBackup[i] = framed[i];
+    }
 
-    // ---- Destuffing logic ----
+    int wantToFlip = 0;
+    printf("\nDo you want to flip a bit to simulate a network error? (1 = Yes, 0 = No): ");
+    scanf("%d", &wantToFlip);
+    
+    if (wantToFlip == 1) {
+        int flipIndex = 0;
+        printf("Enter bit index to flip (0 to %d): ", framedLen - 1);
+        scanf("%d", &flipIndex);
+        
+        if (flipIndex >= 0 && flipIndex < framedLen) {
+            framed[flipIndex] = !framed[flipIndex];
+            printf("Bit at index %d has been flipped successfully!\n", flipIndex);
+            printBits("Corrupted Bin: ", framed, framedLen);
+        } else {
+            printf("Invalid index. Proceeding without bit flip.\n");
+        }
+    }
+
+    printf("\n--- RECEIVER SIDE ---\n");
+    
+    int error = 0;
     ones = 0;
     j = 0;
-    for (i = flagLen; i < framedLen - flagLen; i++) {
-        if (ones == 5) {
-            if (framed[i] != 0) {
-                printf("\nError: Invalid stuffing detected\n");
-                return;
+
+    for (i = 0; i < flagLen; i++) {
+        if (framed[i] != flag[i] || framed[framedLen - flagLen + i] != flag[i]) {
+            error = 1;
+        }
+    }
+
+    if (!error) {
+        for (i = flagLen; i < framedLen - flagLen; i++) {
+            if (ones == 5) {
+                if (framed[i] != 0) {
+                    error = 1;
+                    break;
+                }
+                ones = 0;
+                continue; 
             }
-            ones = 0;
-            continue; // drop stuffed 0
+            destuffed[j++] = framed[i];
+            ones = (framed[i] == 1) ? ones + 1 : 0;
         }
-        destuffed[j++] = framed[i];
-        ones = (framed[i] == 1) ? ones + 1 : 0;
-    }
-    destuffedLen = j;
-    printBits("Destuffed Bin: ", destuffed, destuffedLen);
-
-    // 3. Assemble destuffed serial stream chunks back to characters
-    out_char_count = 0;
-    for (i = 0; i < destuffedLen; i += 8) {
-        for (b = 0; b < 8; b++) {
-            bin_str[b] = (destuffed[i + b] == 1) ? '1' : '0';
-        }
-        bin_str[8] = '\0';
-        out_ascii_arr[out_char_count++] = (int)bin_to_ascii(bin_str);
+        destuffedLen = j;
     }
 
-    // 4. Translate back into string format
-    ascii_to_str(out_ascii_arr, out_char_count, outputString);
-    printf("Output Text  : %s\n", outputString);
-
-    // ---- Final Bit Match Verification ----
-    match = 1;
-    if (destuffedLen != n) match = 0;
-    else {
+    if (!error && destuffedLen == n) {
         for (i = 0; i < n; i++) {
-            if (destuffed[i] != data[i]) { match = 0; break; }
+            if (destuffed[i] != data[i]) {
+                error = 1;
+                break;
+            }
         }
+    } else {
+        error = 1;
     }
-    printf("\nVerification : %s\n", match ? "SUCCESS (Data matches perfectly)" : "FAIL (Mismatch error)");
-}
 
-// ========== BYTE STUFFING FUNCTION ==========
+    if (error == 1) {
+        printBits("Actual data:    ", originalFramedBackup, framedLen);
+        printBits("Changed data:   ", framed, framedLen);
+        printf("Both don't match, so message discarded.\n");
+    } else {
+        printBits("Destuffed data: ", destuffed, destuffedLen);
+        
+        out_char_count = 0;
+        for (i = 0; i < destuffedLen; i += 8) {
+            for (b = 0; b < 8; b++) {
+                bin_str[b] = (destuffed[i + b] == 1) ? '1' : '0';
+            }
+            bin_str[8] = '\0';
+            out_ascii_arr[out_char_count++] = (int)bin_to_ascii(bin_str);
+        }
+        ascii_to_str(out_ascii_arr, out_char_count, outputString);
+        printf("Output Text  : %s\n", outputString);
+        printf("Data matches perfectly!\n");
+    }
+}
 
 void byteStuffing() {
     char inputString[MAX_STR];
@@ -164,32 +186,46 @@ void byteStuffing() {
     int framedLen = 0;
     int destuffedLen = 0;
     int numBytes = 0;
-    int match = 1;
     int error = 0;
     char ebits[9];
+    char sofChoice[9];
+    char eofChoice[9];
+    int sofByte, eofByte;
     int out_ascii_arr[MAX_STR];
     char outputString[MAX_STR];
+    int originalFramedBackup[MAX_BYTES];
 
     printf("\n--- BYTE STUFFING CONFIGURATION ---\n");
-    // Standard flag mapping rule configuration
-    flagByte = 0b01111110;
-    printf("Flag Byte is standard: 01111110\n");
+    
+    printf("Enter Start of Frame (Press 1 for default 01111110): ");
+    scanf("%8s", sofChoice);
+    if (strcmp(sofChoice, "1") == 0) {
+        sofByte = 0b01111110;
+    } else {
+        sofByte = (int)bin_to_ascii(sofChoice);
+    }
+
+    printf("Enter End of Frame (Press 1 for default 01111110): ");
+    scanf("%8s", eofChoice);
+    if (strcmp(eofChoice, "1") == 0) {
+        eofByte = 0b01111110;
+    } else {
+        eofByte = (int)bin_to_ascii(eofChoice);
+    }
 
     printf("Enter Escape byte (8 bits): ");
-    scanf("%s", ebits);
+    scanf("%8s", ebits);
     escByte = (int)bin_to_ascii(ebits);
 
     printf("Enter the data input string: ");
-    scanf(" %[^\n]", inputString);
-
-    // 1. Map input string to ASCII integers
+    scanf(" %99[^\n]", inputString);
+    
     str_to_ascii(inputString, ascii_arr, &str_len);
     numBytes = str_len;
 
-    // 2. Map logical 'F' and 'E' characters to their underlying binary layers
     for (i = 0; i < numBytes; i++) {
         if (inputString[i] == 'F') {
-            dataBytes[i] = flagByte;
+            dataBytes[i] = sofByte;
         } else if (inputString[i] == 'E') {
             dataBytes[i] = escByte;
         } else {
@@ -198,15 +234,15 @@ void byteStuffing() {
     }
 
     printf("\n--- TRANSMITTER SIDE ---\n");
-    printf("Flag = "); printByteArray(flagByte);
+    printf("SOF  = "); printByteArray(sofByte);
+    printf("\nEOF  = "); printByteArray(eofByte);
     printf("\nEsc  = "); printByteArray(escByte);
     printf("\n");
     printBytesAsBinary("Original data: ", dataBytes, numBytes);
 
-    // ---- Byte stuffing logic ----
     j = 0;
     for (i = 0; i < numBytes; i++) {
-        if (dataBytes[i] == flagByte || dataBytes[i] == escByte) {
+        if (dataBytes[i] == sofByte || dataBytes[i] == eofByte || dataBytes[i] == escByte) {
             stuffedBytes[j++] = escByte;
             stuffedBytes[j++] = dataBytes[i];
         } else {
@@ -216,51 +252,92 @@ void byteStuffing() {
     stuffedLen = j;
     printBytesAsBinary("Stuffed data : ", stuffedBytes, stuffedLen);
 
-    // ---- Framing logic ----
     k = 0;
-    framedBytes[k++] = flagByte;
+    framedBytes[k++] = sofByte;
     for (i = 0; i < stuffedLen; i++) {
         framedBytes[k++] = stuffedBytes[i];
     }
-    framedBytes[k++] = flagByte;
+    framedBytes[k++] = eofByte;
     framedLen = k;
     printBytesAsBinary("Framed data  : ", framedBytes, framedLen);
 
-    // ---- Validate frame structures ----
-    if (framedBytes[0] != flagByte || framedBytes[framedLen - 1] != flagByte) {
-        printf("\nError: frame missing flags\n");
-        return;
+    for (i = 0; i < framedLen; i++) {
+        originalFramedBackup[i] = framedBytes[i];
+    }
+
+    int wantToCorrupt = 0;
+    printf("\nDo you want to corrupt a byte to simulate a network error? (1 = Yes, 0 = No): ");
+    scanf("%d", &wantToCorrupt);
+
+    if (wantToCorrupt == 1) {
+        int corruptIndex = 0;
+        int newValue = 0;
+        printf("Enter byte index to change (0 to %d): ", framedLen - 1);
+        scanf("%d", &corruptIndex);
+
+        if (corruptIndex >= 0 && corruptIndex < framedLen) {
+            printf("Enter new decimal value for this byte (0-255): ");
+            scanf("%d", &newValue);
+            framedBytes[corruptIndex] = newValue;
+            printf("Byte at index %d altered successfully!\n", corruptIndex);
+            printBytesAsBinary("Corrupted data: ", framedBytes, framedLen);
+        } else {
+            printf("Invalid index. Proceeding without byte manipulation.\n");
+        }
     }
 
     printf("\n--- RECEIVER SIDE ---\n");
-
-    // ---- Destuffing logic ----
-    m = 0;
-    for (i = 1; i < framedLen - 1; i++) {
-        if (framedBytes[i] == escByte) {
-            if (i + 1 >= framedLen - 1) {
-                printf("Dangling esc byte with no following byte\n");
+    
+    if (framedBytes[0] != sofByte || framedBytes[framedLen - 1] != eofByte) {
+        error = 1;
+    } else {
+        m = 0;
+        for (i = 1; i < framedLen - 1; i++) {
+            if (framedBytes[i] == escByte) {
+                if (i + 1 >= framedLen - 1) { error = 1; break; }
+                i++;
+                destuffedBytes[m++] = framedBytes[i];
+            } else if (framedBytes[i] == sofByte || framedBytes[i] == eofByte) {
                 error = 1;
                 break;
+            } else {
+                destuffedBytes[m++] = framedBytes[i];
             }
-            i++;
-            destuffedBytes[m++] = framedBytes[i];
-        } else if (framedBytes[i] == flagByte) {
-            printf("Error: unexpected flag inside frame\n");
-            error = 1;
-            break;
-        } else {
-            destuffedBytes[m++] = framedBytes[i];
         }
+        destuffedLen = m;
     }
-    destuffedLen = m;
 
-    if (!error) {
-        printBytesAsBinary("Destuffed    : ", destuffedBytes, destuffedLen);
+    if (!error && destuffedLen == numBytes) {
+        for (i = 0; i < numBytes; i++) {
+            if (destuffedBytes[i] != dataBytes[i]) { error = 1; break; }
+        }
+    } else {
+        error = 1;
+    }
 
-        // 3. Map binary blocks back to human-visible text representations
+    if (error == 1) {
+        printf("Actual data:    ");
+        for (i = 0; i < framedLen; i++) {
+            if (originalFramedBackup[i] == sofByte) printf("S");
+            else if (originalFramedBackup[i] == eofByte) printf("F");
+            else if (originalFramedBackup[i] == escByte) printf("E");
+            else printf("%c", (char)originalFramedBackup[i]);
+        }
+        printf("\nChanged data:   ");
+        for (i = 0; i < framedLen; i++) {
+            if (framedBytes[i] == sofByte) printf("S");
+            else if (framedBytes[i] == eofByte) printf("F");
+            else if (framedBytes[i] == escByte) printf("E");
+            else printf("%c", (char)framedBytes[i]);
+        }
+        printf("\nBoth don't match, so message discarded.\n");
+    } else {
+        printBytesAsBinary("Destuffed data: ", destuffedBytes, destuffedLen);
+        
         for (i = 0; i < destuffedLen; i++) {
-            if (destuffedBytes[i] == flagByte) {
+            if (destuffedBytes[i] == sofByte) {
+                out_ascii_arr[i] = (int)'S';
+            } else if (destuffedBytes[i] == eofByte) {
                 out_ascii_arr[i] = (int)'F';
             } else if (destuffedBytes[i] == escByte) {
                 out_ascii_arr[i] = (int)'E';
@@ -268,53 +345,35 @@ void byteStuffing() {
                 out_ascii_arr[i] = destuffedBytes[i];
             }
         }
-
-        // 4. Translate character map array to plain output text string
         ascii_to_str(out_ascii_arr, destuffedLen, outputString);
-        printf("Output Text  : %s\n", outputString);
-
-        // ---- Final Byte Match Verification ----
-        if (destuffedLen == numBytes) {
-            match = 1;
-            for (i = 0; i < numBytes; i++) {
-                if (destuffedBytes[i] != dataBytes[i]) { match = 0; break; }
-            }
-            printf("\nVerification : %s\n", match ? "SUCCESS (Data matches perfectly)" : "FAIL (Mismatch error)");
-        } else {
-            printf("\nLength mismatch after destuff\n");
-        }
+        printf("Output Text   : %s\n", outputString);
+        printf("Data matches perfectly!\n");
     }
 }
 
 
 int main() {
     int choice;
-
     while (1) {
         printf("\n1. Bit Stuffing\n");
         printf("2. Byte Stuffing\n");
         printf("3. Exit\n");
         printf("Enter your choice (1, 2, or 3): ");
         scanf("%d", &choice);
-
         switch (choice) {
             case 1:
                 bitStuffing();
                 break;
-
             case 2:
                 byteStuffing();
                 break;
-
             case 3:
                 printf("\nExiting program\n");
                 return 0;
-
             default:
                 printf("Invalid selection. Please enter 1, 2, or 3.\n");
                 break;
         }
     }
-
     return 0;
 }
