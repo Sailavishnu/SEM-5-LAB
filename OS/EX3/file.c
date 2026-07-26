@@ -1,4 +1,4 @@
-1
+//1st question
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -70,7 +70,8 @@ int main()
     return 0;
 }
 
-2
+
+//2nd question
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
@@ -162,7 +163,7 @@ int main()
     return 0;
 }
 
-3
+//3rd question
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
