@@ -1,37 +1,30 @@
 %{
 #include<stdio.h>
-#include<string.h>
 #include<stdlib.h>
 
-FILE *out;
+FILE *in, *out;
 int is_count = 0;
 
-/* Function to increment number by 10 */
 void incrementNumber(char *num_str)
 {
     int num = atoi(num_str);
-    num += 10;
-    fprintf(out, "%d", num);
+    fprintf(out, "%d", num + 10);
 }
 %}
 
 %%
 
-"is"  {
-    fprintf(out, "was");
+" is " {
+    fprintf(out, " was ");
     is_count++;
 }
 
-[0-9]+  {
+[0-9]+ {
     incrementNumber(yytext);
 }
 
-.  {
+.|\n {
     fprintf(out, "%s", yytext);
-}
-
-\n  {
-    fprintf(out, "\n");
 }
 
 %%
@@ -43,30 +36,31 @@ int yywrap()
 
 int main()
 {
-    FILE *in;
-    
-    in = fopen("input_text.txt", "r");
+    in = fopen("text_input.txt", "r");
+
     if(in == NULL)
     {
         printf("Cannot open input file.\n");
         return 1;
     }
-    
-    out = fopen("output_text.txt", "w");
+
+    out = fopen("text_output.txt", "w");
+
     if(out == NULL)
     {
         printf("Cannot open output file.\n");
+        fclose(in);
         return 1;
     }
-    
+
     yyin = in;
     yylex();
-    
+
     printf("Text processing completed.\n");
     printf("Number of 'is' replaced = %d\n", is_count);
-    
+
     fclose(in);
     fclose(out);
-    
+
     return 0;
 }

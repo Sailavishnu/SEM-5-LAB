@@ -322,6 +322,9 @@ void yyfree ( void *  );
 #define YY_AT_BOL() (YY_CURRENT_BUFFER_LVALUE->yy_at_bol)
 
 /* Begin user sect3 */
+
+#define yywrap() (/*CONSTCOND*/1)
+#define YY_SKIP_YYWRAP
 typedef flex_uint8_t YY_CHAR;
 
 FILE *yyin = NULL, *yyout = NULL;
@@ -351,8 +354,8 @@ static void yynoreturn yy_fatal_error ( const char* msg  );
 	(yy_hold_char) = *yy_cp; \
 	*yy_cp = '\0'; \
 	(yy_c_buf_p) = yy_cp;
-#define YY_NUM_RULES 5
-#define YY_END_OF_BUFFER 6
+#define YY_NUM_RULES 6
+#define YY_END_OF_BUFFER 7
 /* This struct is not used in this scanner,
    but its presence is necessary. */
 struct yy_trans_info
@@ -360,9 +363,10 @@ struct yy_trans_info
 	flex_int32_t yy_verify;
 	flex_int32_t yy_nxt;
 	};
-static const flex_int16_t yy_accept[11] =
+static const flex_int16_t yy_accept[15] =
     {   0,
-        0,    0,    6,    3,    4,    2,    3,    2,    1,    0
+        0,    0,    7,    3,    5,    4,    3,    0,    0,    0,
+        0,    1,    2,    0
     } ;
 
 static const YY_CHAR yy_ec[256] =
@@ -371,15 +375,15 @@ static const YY_CHAR yy_ec[256] =
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-        1,    1,    1,    1,    1,    1,    1,    3,    3,    3,
-        3,    3,    3,    3,    3,    3,    3,    1,    1,    1,
+        1,    1,    1,    1,    1,    1,    3,    1,    1,    1,
+        1,    1,    1,    1,    1,    1,    1,    1,    1,    4,
+        1,    5,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-        1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-        1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+        1,    1,    1,    1,    1,    1,    6,    1,    1,    1,
 
-        1,    1,    1,    1,    4,    1,    1,    1,    1,    1,
-        1,    1,    1,    1,    5,    1,    1,    1,    1,    1,
+        1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+        1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
@@ -397,33 +401,35 @@ static const YY_CHAR yy_ec[256] =
         1,    1,    1,    1,    1
     } ;
 
-static const YY_CHAR yy_meta[6] =
+static const YY_CHAR yy_meta[7] =
     {   0,
-        1,    1,    2,    1,    3
+        1,    2,    1,    2,    3,    4
     } ;
 
-static const flex_int16_t yy_base[13] =
+static const flex_int16_t yy_base[20] =
     {   0,
-        0,    0,    8,    9,    9,    0,    0,    0,    9,    9,
-        5,    3
+        0,    3,   17,    0,   24,    5,    0,    0,    5,    0,
+        4,   24,   24,   24,   11,   15,    2,   19,    0
     } ;
 
-static const flex_int16_t yy_def[13] =
+static const flex_int16_t yy_def[20] =
     {   0,
-       10,    1,   10,   10,   10,   11,   12,   11,   10,    0,
-       10,   10
+       15,   15,   14,   16,   14,   14,   16,   17,   18,   19,
+       18,   14,   14,    0,   14,   14,   14,   14,   14
     } ;
 
-static const flex_int16_t yy_nxt[15] =
+static const flex_int16_t yy_nxt[31] =
     {   0,
-        4,    5,    6,    7,    4,    9,    8,   10,    3,   10,
-       10,   10,   10,   10
+       14,    5,   13,    6,    5,   10,    6,    8,   12,   12,
+        9,    4,    4,    4,    4,    7,   14,    7,    7,   11,
+       11,   11,   11,    3,   14,   14,   14,   14,   14,   14
     } ;
 
-static const flex_int16_t yy_chk[15] =
+static const flex_int16_t yy_chk[31] =
     {   0,
-        1,    1,    1,    1,    1,   12,   11,    3,   10,   10,
-       10,   10,   10,   10
+        0,    1,   19,    1,    2,   17,    2,    6,   11,    9,
+        6,   15,   15,   15,   15,   16,    3,   16,   16,   18,
+       18,   18,   18,   14,   14,   14,   14,   14,   14,   14
     } ;
 
 static yy_state_type yy_last_accepting_state;
@@ -440,24 +446,47 @@ int yy_flex_debug = 0;
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
-#line 1 "text_modify.l"
-#line 2 "text_modify.l"
-#include<stdio.h>
-#include<string.h>
-#include<stdlib.h>
+#line 1 "html_links.l"
+#line 2 "html_links.l"
+#include <stdio.h>
+#include <string.h>
 
 FILE *out;
-int is_count = 0;
+char link_url[500] = "";
+int in_anchor = 0;
 
-/* Function to increment number by 10 */
-void incrementNumber(char *num_str)
+void extractURL(char *str)
 {
-    int num = atoi(num_str);
-    num += 10;
-    fprintf(out, "%d", num);
+    char *start = strstr(str, "href=\"");
+
+    if (start == NULL)
+    {
+        fprintf(out, "Error: Anchor tag found without href attribute.\n\n");
+        in_anchor = 0;
+        return;
+    }
+
+    start += 6;
+    int i = 0;
+    while (start[i] != '"' && start[i] != '\0' && i < 499)
+    {
+        link_url[i] = start[i];
+        i++;
+    }
+    link_url[i] = '\0';
+
+    if (strlen(link_url) == 0)
+    {
+        fprintf(out, "Error: Empty href attribute.\n\n");
+        in_anchor = 0;
+    }
+    else
+    {
+        in_anchor = 1;
+    }
 }
-#line 460 "lex.yy.c"
-#line 461 "lex.yy.c"
+#line 489 "lex.yy.c"
+#line 490 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -674,10 +703,10 @@ YY_DECL
 		}
 
 	{
-#line 18 "text_modify.l"
+#line 43 "html_links.l"
 
 
-#line 681 "lex.yy.c"
+#line 710 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -704,13 +733,13 @@ yy_match:
 			while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 				{
 				yy_current_state = (int) yy_def[yy_current_state];
-				if ( yy_current_state >= 11 )
+				if ( yy_current_state >= 15 )
 					yy_c = yy_meta[yy_c];
 				}
 			yy_current_state = yy_nxt[yy_base[yy_current_state] + yy_c];
 			++yy_cp;
 			}
-		while ( yy_base[yy_current_state] != 9 );
+		while ( yy_base[yy_current_state] != 24 );
 
 yy_find_action:
 		yy_act = yy_accept[yy_current_state];
@@ -735,41 +764,55 @@ do_action:	/* This label is used only to access EOF actions. */
 			goto yy_find_action;
 
 case 1:
+/* rule 1 can match eol */
 YY_RULE_SETUP
-#line 20 "text_modify.l"
+#line 45 "html_links.l"
 {
-    fprintf(out, "was");
-    is_count++;
+    extractURL(yytext);
 }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 25 "text_modify.l"
+#line 49 "html_links.l"
 {
-    incrementNumber(yytext);
+    in_anchor = 0;
 }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 29 "text_modify.l"
+#line 53 "html_links.l"
 {
-    fprintf(out, "%s", yytext);
+    if (in_anchor)
+    {
+        fprintf(out, "Link Text: %s\n", yytext);
+        fprintf(out, "URL: %s\n", link_url);
+
+        if (strcmp(link_url, "#") == 0)
+            fprintf(out, "Note: Hyperlink points to the current page.\n");
+
+        fprintf(out, "\n");
+
+        link_url[0] = '\0';
+    }
 }
 	YY_BREAK
 case 4:
-/* rule 4 can match eol */
 YY_RULE_SETUP
-#line 33 "text_modify.l"
-{
-    fprintf(out, "\n");
-}
+#line 68 "html_links.l"
+;
 	YY_BREAK
 case 5:
+/* rule 5 can match eol */
 YY_RULE_SETUP
-#line 37 "text_modify.l"
+#line 69 "html_links.l"
+;
+	YY_BREAK
+case 6:
+YY_RULE_SETUP
+#line 71 "html_links.l"
 ECHO;
 	YY_BREAK
-#line 773 "lex.yy.c"
+#line 816 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1066,7 +1109,7 @@ static int yy_get_next_buffer (void)
 		while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 			{
 			yy_current_state = (int) yy_def[yy_current_state];
-			if ( yy_current_state >= 11 )
+			if ( yy_current_state >= 15 )
 				yy_c = yy_meta[yy_c];
 			}
 		yy_current_state = yy_nxt[yy_base[yy_current_state] + yy_c];
@@ -1094,11 +1137,11 @@ static int yy_get_next_buffer (void)
 	while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 		{
 		yy_current_state = (int) yy_def[yy_current_state];
-		if ( yy_current_state >= 11 )
+		if ( yy_current_state >= 15 )
 			yy_c = yy_meta[yy_c];
 		}
 	yy_current_state = yy_nxt[yy_base[yy_current_state] + yy_c];
-	yy_is_jam = (yy_current_state == 10);
+	yy_is_jam = (yy_current_state == 14);
 
 		return yy_is_jam ? 0 : yy_current_state;
 }
@@ -1774,41 +1817,23 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 37 "text_modify.l"
+#line 71 "html_links.l"
 
-
-int yywrap()
-{
-    return 1;
-}
 
 int main()
 {
-    FILE *in;
-    
-    in = fopen("input_text.txt", "r");
-    if(in == NULL)
-    {
-        printf("Cannot open input file.\n");
-        return 1;
-    }
-    
-    out = fopen("output_text.txt", "w");
-    if(out == NULL)
-    {
-        printf("Cannot open output file.\n");
-        return 1;
-    }
-    
+    FILE *in = fopen("web_input.html", "r");
+    if (in == NULL) { printf("Cannot open HTML file.\n"); return 1; }
+
+    out = fopen("web_output.txt", "w");
+    if (out == NULL) { printf("Cannot open output file.\n"); fclose(in); return 1; }
+
     yyin = in;
     yylex();
-    
-    printf("Text processing completed.\n");
-    printf("Number of 'is' replaced = %d\n", is_count);
-    
+
+    printf("Hyperlinks extracted successfully.\n");
+
     fclose(in);
     fclose(out);
-    
     return 0;
 }
-

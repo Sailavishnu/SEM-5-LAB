@@ -2,52 +2,61 @@
 #include<stdio.h>
 #include<string.h>
 #include<ctype.h>
-
-char password[100];
 %}
 
 %%
 
-[a-zA-Z][a-zA-Z0-9&@$\-]*    {
+[a-zA-Z][a-zA-Z0-9&@$\-]* {
+
     int len = strlen(yytext);
-    int upper=0, lower=0, digit=0, special=0;
+    int upper = 0, lower = 0, digit = 0, special = 0;
+    int length = 1;
 
-    if(len<8)
+    /* Length Check */
+    if(len < 8 || len > 64)
+        length = 0;
+
+    /* Character Checks */
+    for(int i = 0; i < len; i++)
     {
-        printf("Invalid Password: Length should be at least 8.\n");
-        return 0;
+        if(isupper(yytext[i]))
+            upper = 1;
+        else if(islower(yytext[i]))
+            lower = 1;
+        else if(isdigit(yytext[i]))
+            digit = 1;
+        else if(yytext[i] == '&' || yytext[i] == '@' || yytext[i] == '$' || yytext[i] == '-')
+            special = 1;
     }
 
-    if(len>64)
-    {
-        printf("Invalid Password: Length should not exceed 64.\n");
-        return 0;
-    }
+    if(!(length && upper && lower && digit && special))
+        printf("Invalid Password:\n");
 
-    for(int i=0;i<len;i++)
-    {
-        if(isupper(yytext[i])) upper=1;
-        if(islower(yytext[i])) lower=1;
-        if(isdigit(yytext[i])) digit=1;
-        if(yytext[i]=='&' || yytext[i]=='@' || yytext[i]=='$' || yytext[i]=='-')
-            special=1;
-    }
+    if(!length)
+        printf("Length should be between 8 and 64 characters.\n");
 
     if(!upper)
-        printf("Invalid: No uppercase letter.\n");
-    if(!lower)
-        printf("Invalid: No lowercase letter.\n");
-    if(!digit)
-        printf("Invalid: No digit.\n");
-    if(!special)
-        printf("Invalid: No special character.\n");
+        printf("Missing uppercase letter.\n");
 
-    if(upper && lower && digit && special)
+    if(!lower)
+        printf("Missing lowercase letter.\n");
+
+    if(!digit)
+        printf("Missing digit.\n");
+
+    if(!special)
+        printf("Missing special character.\n");
+
+    if(length && upper && lower && digit && special)
         printf("Valid Password.\n");
+
+    return 0;
 }
 
-.|\n {
-    printf("Invalid Password: Should start with an alphabet and contain only valid characters.\n");
+. {
+    printf("Invalid Password:\n");
+    printf("Should start with an alphabet and contain only valid characters.\n");
+    return 0;
 }
 
 %%
