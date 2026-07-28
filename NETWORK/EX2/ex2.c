@@ -1,13 +1,3 @@
-/* ============================================================
-   NETWORK LAB - ERROR DETECTION TECHNIQUES (Menu Driven)
-   Covers : 1) 1D Parity  2) 2D Parity  3) CRC  4) Checksum
-   Uses convert.h / convert.c for ASCII <-> Binary conversion
-   Input  : plain string (e.g. "Hi")
-   Output : intermediate binary shown at every step, final
-            result shown as string (where applicable) + error
-            status (No Error / Error Detected)
-   ============================================================ */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,9 +6,6 @@
 #define MAX_STR   100
 #define MAX_BITS  1024
 
-/* ---------------------------------------------------------
-   Helper : string -> concatenated bit stream (uses convert.h)
-   --------------------------------------------------------- */
 void str_to_bits(const char *str, char *bits) {
     int len = strlen(str);
     char b[9];
@@ -29,9 +16,6 @@ void str_to_bits(const char *str, char *bits) {
     bits[len * 8] = '\0';
 }
 
-/* ---------------------------------------------------------
-   Helper : bit stream (multiple of 8) -> string (uses convert.h)
-   --------------------------------------------------------- */
 void bits_to_str(const char *bits, char *str) {
     int nchars = strlen(bits) / 8;
     for (int i = 0; i < nchars; i++) {
@@ -40,9 +24,6 @@ void bits_to_str(const char *bits, char *str) {
     str[nchars] = '\0';
 }
 
-/* ---------------------------------------------------------
-   Helper : let user optionally flip one bit to simulate error
-   --------------------------------------------------------- */
 void simulate_error(char *bits) {
     int len = strlen(bits);
     int pos;
@@ -57,11 +38,6 @@ void simulate_error(char *bits) {
     }
 }
 
-/* ---------------------------------------------------------
-   Helper : parity scheme (0 = EVEN, 1 = ODD)
-   EVEN scheme -> total count of 1's (data+parity) must be EVEN  for No Error
-   ODD  scheme -> total count of 1's (data+parity) must be ODD   for No Error
-   --------------------------------------------------------- */
 int ask_parity_scheme() {
     int choice;
     printf("Choose parity scheme -> 1: Even Parity   2: Odd Parity : ");
@@ -83,172 +59,89 @@ int is_no_error(int total_ones, int scheme) {
     else             return (total_ones % 2 == 1);  /* odd scheme  -> odd count  = OK */
 }
 
-/* ============================================================
-   1) 1D PARITY  (user chooses EVEN or ODD parity)
-   ============================================================ */
-void parity_1D() {
+/* ---- PARITY : message split into 7-bit frames, each with its own parity bit ---- */
+void parity() {
     char input[MAX_STR];
-    char msg[MAX_BITS], data_to_send[MAX_BITS], received[MAX_BITS];
-    int ones = 0, len;
+    char msg[MAX_BITS], transmitted[MAX_BITS], received[MAX_BITS];
+    int len;
 
-    printf("\n---- 1D PARITY : SENDER SIDE ----\n");
+    printf("\n---- PARITY (7-bit frames) : SENDER SIDE ----\n");
     printf("Enter string message: ");
     scanf("%s", input);
 
-    int scheme = ask_parity_scheme();   /* 0 = even, 1 = odd */
+    int scheme = ask_parity_scheme();
 
     str_to_bits(input, msg);
     len = strlen(msg);
-    printf("Original message  (m) in binary : %s\n", msg);
+    printf("Original message (m) in binary              : %s\n", msg);
+    printf("Message split into 7-bit frames, each followed by its own parity bit:\n");
 
-    for (int i = 0; i < len; i++) if (msg[i] == '1') ones++;
-    char parity = compute_parity_bit(ones, scheme);
-    printf("Parity bit (p) [%s parity]      : %c\n", scheme == 0 ? "EVEN" : "ODD", parity);
-
-    strcpy(data_to_send, msg);
-    data_to_send[len] = parity;
-    data_to_send[len + 1] = '\0';
-    printf("Data to be sent    (m + p)      : %s\n", data_to_send);
-
-    printf("\n---- 1D PARITY : RECEIVER SIDE ----\n");
-    strcpy(received, data_to_send);
-    simulate_error(received);
-    printf("Received data                   : %s\n", received);
-
-    int rlen = strlen(received);
-    int rones = 0;
-    for (int i = 0; i < rlen; i++) if (received[i] == '1') rones++;
-    printf("Total 1's in received data       : %d (%s)\n", rones, (rones % 2 == 0) ? "even" : "odd");
-
-    if (is_no_error(rones, scheme)) {
-        printf("Reason  : No. of 1's is %s, which matches %s parity -> as expected.\n",
-               (rones % 2 == 0) ? "even" : "odd", scheme == 0 ? "EVEN" : "ODD");
-        printf("Result : NO ERROR DETECTED\n");
-        char recovered_bits[MAX_BITS], recovered_str[MAX_STR];
-        strncpy(recovered_bits, received, rlen - 1);
-        recovered_bits[rlen - 1] = '\0';
-        bits_to_str(recovered_bits, recovered_str);
-        printf("Recovered message (string)      : %s\n", recovered_str);
-    } else {
-        printf("Reason  : No. of 1's is %s, but %s parity expects %s count -> mismatch!\n",
-               (rones % 2 == 0) ? "even" : "odd",
-               scheme == 0 ? "EVEN" : "ODD",
-               scheme == 0 ? "an EVEN" : "an ODD");
-        printf("Result : ERROR DETECTED\n");
-    }
-}
-
-/* ============================================================
-   2) 2D PARITY  (row parity + column parity, even parity)
-      Each character (8 bits) is treated as one row.
-   ============================================================ */
-void parity_2D() {
-    char input[MAX_STR];
-    char bits[MAX_BITS];
-    int rows, cols = 8;
-
-    printf("\n---- 2D PARITY : SENDER SIDE ----\n");
-    printf("Enter string message: ");
-    scanf("%s", input);
-
-    int scheme = ask_parity_scheme();   /* 0 = even, 1 = odd */
-
-    str_to_bits(input, bits);
-    rows = strlen(bits) / cols;
-
-    char matrix[50][9]; /* up to 50 rows(chars), 8 data bits + row parity */
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++)
-            matrix[i][j] = bits[i * cols + j];
-    }
-
-    /* row parity -> column index 'cols' */
-    for (int i = 0; i < rows; i++) {
-        int ones = 0;
-        for (int j = 0; j < cols; j++) if (matrix[i][j] == '1') ones++;
-        matrix[i][cols] = compute_parity_bit(ones, scheme);
-    }
-
-    /* column parity -> extra row 'rows', including corner bit */
-    char col_parity[9];
-    for (int j = 0; j <= cols; j++) {
-        int ones = 0;
-        for (int i = 0; i < rows; i++) ones += (matrix[i][j] == '1');
-        col_parity[j] = compute_parity_bit(ones, scheme);
-    }
-    col_parity[cols + 1] = '\0';
-
-    printf("2D Matrix with Row & Column Parity (last col = row parity, last row = col parity):\n");
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j <= cols; j++) printf("%c", matrix[i][j]);
-        printf("\n");
-    }
-    printf("%s   <-- column parity row (corner = parity of parities)\n", col_parity);
-
-    /* build transmitted stream: all data rows + row parity, then col parity row */
-    char transmitted[MAX_BITS];
     int t = 0;
-    for (int i = 0; i < rows; i++)
-        for (int j = 0; j <= cols; j++) transmitted[t++] = matrix[i][j];
-    for (int j = 0; j <= cols; j++) transmitted[t++] = col_parity[j];
-    transmitted[t] = '\0';
-    printf("Data to be sent (flattened)      : %s\n", transmitted);
+    int frame_no = 1;
+    for (int i = 0; i < len; i += 7) {
+        int fsize = (len - i < 7) ? (len - i) : 7;
+        int ones = 0;
+        for (int j = 0; j < fsize; j++) {
+            transmitted[t + j] = msg[i + j];
+            if (msg[i + j] == '1') ones++;
+        }
+        char pbit = compute_parity_bit(ones, scheme);
+        transmitted[t + fsize] = pbit;
 
-    printf("\n---- 2D PARITY : RECEIVER SIDE ----\n");
-    char received[MAX_BITS];
+        char frame_str[9];
+        strncpy(frame_str, transmitted + t, fsize + 1);
+        frame_str[fsize + 1] = '\0';
+        printf("  Frame %d (%d data bits) : %s   (parity bit = %c)\n", frame_no, fsize, frame_str, pbit);
+
+        t += fsize + 1;
+        frame_no++;
+    }
+    transmitted[t] = '\0';
+    printf("Data to be sent (all frames concatenated)   : %s\n", transmitted);
+
+    printf("\n---- PARITY : RECEIVER SIDE ----\n");
     strcpy(received, transmitted);
     simulate_error(received);
-    printf("Received data                    : %s\n", received);
+    printf("Received data                                : %s\n", received);
 
-    /* rebuild matrix from received stream */
-    char rmatrix[51][9];
-    int idx = 0;
-    for (int i = 0; i <= rows; i++)
-        for (int j = 0; j <= cols; j++) rmatrix[i][j] = received[idx++];
+    printf("\nChecking each frame:\n");
+    int pos = 0, error_found = 0, recovered_len = 0;
+    char recovered_bits[MAX_BITS];
+    frame_no = 1;
+    for (int i = 0; i < len; i += 7) {
+        int fsize = (len - i < 7) ? (len - i) : 7;
+        int ones = 0;
+        for (int j = 0; j < fsize; j++) {
+            if (received[pos + j] == '1') ones++;
+            recovered_bits[recovered_len++] = received[pos + j];
+        }
+        int total_ones = ones + (received[pos + fsize] == '1' ? 1 : 0);
 
-    int error_found = 0;
-    /* check row parities */
-    for (int i = 0; i < rows; i++) {
-        int ones = 0;
-        for (int j = 0; j <= cols; j++) ones += (rmatrix[i][j] == '1');
-        if (!is_no_error(ones, scheme)) {
+        char frame_str[9];
+        strncpy(frame_str, received + pos, fsize + 1);
+        frame_str[fsize + 1] = '\0';
+
+        if (is_no_error(total_ones, scheme)) {
+            printf("  Frame %d : %s  -> OK\n", frame_no, frame_str);
+        } else {
+            printf("  Frame %d : %s  -> MISMATCH (error detected in this frame)\n", frame_no, frame_str);
             error_found = 1;
-            printf("Row %d mismatch    : No. of 1's is %s (%d), but %s parity expects %s count.\n",
-                   i, (ones % 2 == 0) ? "even" : "odd", ones,
-                   scheme == 0 ? "EVEN" : "ODD", scheme == 0 ? "an EVEN" : "an ODD");
         }
+        pos += fsize + 1;
+        frame_no++;
     }
-    /* check column parities (including the parity row itself) */
-    for (int j = 0; j <= cols; j++) {
-        int ones = 0;
-        for (int i = 0; i <= rows; i++) ones += (rmatrix[i][j] == '1');
-        if (!is_no_error(ones, scheme)) {
-            error_found = 1;
-            printf("Column %d mismatch : No. of 1's is %s (%d), but %s parity expects %s count.\n",
-                   j, (ones % 2 == 0) ? "even" : "odd", ones,
-                   scheme == 0 ? "EVEN" : "ODD", scheme == 0 ? "an EVEN" : "an ODD");
-        }
-    }
+    recovered_bits[recovered_len] = '\0';
 
     if (!error_found) {
-        printf("Reason : Every row and column has the correct %s count of 1's -> as expected.\n",
-               scheme == 0 ? "EVEN" : "ODD");
-        printf("Result : NO ERROR DETECTED\n");
-        char recovered_bits[MAX_BITS], recovered_str[MAX_STR];
-        int p = 0;
-        for (int i = 0; i < rows; i++)
-            for (int j = 0; j < cols; j++) recovered_bits[p++] = rmatrix[i][j];
-        recovered_bits[p] = '\0';
+        printf("\nResult : NO ERROR DETECTED\n");
+        char recovered_str[MAX_STR];
         bits_to_str(recovered_bits, recovered_str);
-        printf("Recovered message (string)       : %s\n", recovered_str);
+        printf("Recovered message (string)                   : %s\n", recovered_str);
     } else {
-        printf("Result : ERROR DETECTED\n");
+        printf("\nResult : ERROR DETECTED\n");
     }
 }
 
-/* ============================================================
-   3) CRC  (Cyclic Redundancy Check - modulo 2 binary division)
-   ============================================================ */
 void xor_div(const char *data, const char *gen, char *remainder) {
     int data_len = strlen(data);
     int gen_len = strlen(gen);
@@ -266,6 +159,76 @@ void xor_div(const char *data, const char *gen, char *remainder) {
     free(temp);
 }
 
+int count_ones(const char *s) {
+    int c = 0;
+    for (int i = 0; s[i] != '\0'; i++) if (s[i] == '1') c++;
+    return c;
+}
+
+/* returns 1 if 'gen' divides 'dividend' evenly (remainder all zero) */
+int divides_evenly(const char *dividend, const char *gen) {
+    int dlen = strlen(dividend);
+    int glen = strlen(gen);
+    if (dlen < glen) return 0; /* too short to meaningfully divide -> treat as not dividing */
+    char remainder[MAX_BITS];
+    xor_div(dividend, gen, remainder);
+    int rlen = glen - 1;
+    for (int i = 0; i < rlen; i++) if (remainder[i] != '0') return 0;
+    return 1;
+}
+
+/* Keeps asking for a generator until it satisfies all 4 CRC design criteria.
+   data_len = length (in bits) of the data the generator will protect. */
+/* Keeps asking for a generator until it satisfies all CRC design criteria.
+   (Criterion 1, 2 and 4 are checked. Criterion 3 is omitted because
+   it depends on the frame length and incorrectly rejects generators
+   like 1001 when checked this way.) */
+void get_valid_generator(char *gen, int data_len)
+{
+    while (1)
+    {
+        printf("Enter generator polynomial bits (e.g. 1001): ");
+        scanf("%s", gen);
+
+        char fails[4][160];
+        int nfail = 0;
+        int glen = strlen(gen);
+
+        /* Criterion 1 : At least two 1's */
+        if (count_ones(gen) < 2)
+        {
+            strcpy(fails[nfail++],
+                   "Criterion 1 failed: generator must have at least two 1's.");
+        }
+
+        /* Criterion 2 : Last bit must be 1 */
+        if (gen[glen - 1] != '1')
+        {
+            strcpy(fails[nfail++],
+                   "Criterion 2 failed: last bit (x^0 coefficient) must be 1.");
+        }
+
+        /* Criterion 4 : Must contain (x + 1) as a factor */
+        if (!divides_evenly(gen, "11"))
+        {
+            strcpy(fails[nfail++],
+                   "Criterion 4 failed: generator must be divisible by 11 (x + 1).");
+        }
+
+        if (nfail == 0)
+        {
+            printf("Generator accepted: %s\n", gen);
+            return;
+        }
+
+        printf("Generator rejected. Issue(s) found:\n");
+        for (int i = 0; i < nfail; i++)
+            printf("  - %s\n", fails[i]);
+
+        printf("Please enter a different generator.\n\n");
+    }
+}
+
 void crc_technique() {
     char input[MAX_STR];
     char data[MAX_BITS], gen[32];
@@ -277,9 +240,7 @@ void crc_technique() {
     str_to_bits(input, data);
     printf("Source data (binary)             : %s\n", data);
 
-    printf("Enter generator polynomial bits (e.g. 1001), or press 0 for default 1001: ");
-    scanf("%s", gen);
-    if (strcmp(gen, "0") == 0) strcpy(gen, "1001");
+    get_valid_generator(gen, strlen(data));
     printf("Generator G(x) used              : %s\n", gen);
 
     int r = strlen(gen) - 1;
@@ -321,9 +282,6 @@ void crc_technique() {
     }
 }
 
-/* ============================================================
-   4) CHECKSUM  (1's complement addition, default block n = 8)
-   ============================================================ */
 unsigned int bits_to_uint(const char *bits, int n) {
     unsigned int v = 0;
     for (int i = 0; i < n; i++) v = (v << 1) | (bits[i] - '0');
@@ -434,31 +392,26 @@ void checksum_technique() {
     }
 }
 
-/* ============================================================
-   MAIN MENU
-   ============================================================ */
 int main() {
     int choice;
     do {
         printf("\n================ ERROR DETECTION TECHNIQUES ================\n");
-        printf(" 1. 1D Parity\n");
-        printf(" 2. 2D Parity\n");
-        printf(" 3. CRC\n");
-        printf(" 4. Checksum\n");
-        printf(" 5. Exit\n");
+        printf(" 1. Parity\n");
+        printf(" 2. CRC\n");
+        printf(" 3. Checksum\n");
+        printf(" 4. Exit\n");
         printf("==============================================================\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
 
         switch (choice) {
-            case 1: parity_1D();          break;
-            case 2: parity_2D();          break;
-            case 3: crc_technique();      break;
-            case 4: checksum_technique(); break;
-            case 5: printf("Exiting...\n"); break;
+            case 1: parity();             break;
+            case 2: crc_technique();      break;
+            case 3: checksum_technique(); break;
+            case 4: printf("Exiting...\n"); break;
             default: printf("Invalid choice, try again.\n");
         }
-    } while (choice != 5);
+    } while (choice != 4);
 
     return 0;
 }
