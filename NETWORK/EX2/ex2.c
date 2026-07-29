@@ -59,7 +59,42 @@ int is_no_error(int total_ones, int scheme) {
     else             return (total_ones % 2 == 1);  /* odd scheme  -> odd count  = OK */
 }
 
-/* ---- PARITY : message split into 7-bit frames, each with its own parity bit ---- */
+/* Asks how many bits to flip, then asks a position for each flip individually.
+   Records every position actually flipped into flipped_positions[], count in *nflips. */
+void simulate_multi_error(char *bits, int *flipped_positions, int *nflips) {
+    int len = strlen(bits);
+    int k;
+
+    printf("\nSimulate transmission error(s)\n");
+    printf("How many bits do you want to flip? (0 for NO error): ");
+    scanf("%d", &k);
+
+    if (k <= 0) {
+        printf("No error introduced.\n");
+        *nflips = 0;
+        return;
+    }
+
+    int count = 0;
+    for (int i = 0; i < k; i++) {
+        int pos;
+        printf("  Enter bit position #%d to flip (0 to %d): ", i + 1, len - 1);
+        scanf("%d", &pos);
+        if (pos >= 0 && pos < len) {
+            bits[pos] = (bits[pos] == '0') ? '1' : '0';
+            flipped_positions[count++] = pos;
+            printf("    -> Bit at position %d flipped.\n", pos);
+        } else {
+            printf("    -> Invalid position %d, ignored.\n", pos);
+        }
+    }
+    *nflips = count;
+}
+
+/* ---- PARITY : message split into 7-bit frames, each with its own parity bit ----
+   Parity can only detect an ODD number of bit errors within a frame.
+   If a frame receives an EVEN number of flips (2, 4, ...), the parity still
+   matches and the error slips through undetected -- this is demonstrated below. */
 void parity() {
     char input[MAX_STR];
     char msg[MAX_BITS], transmitted[MAX_BITS], received[MAX_BITS];
@@ -101,15 +136,23 @@ void parity() {
 
     printf("\n---- PARITY : RECEIVER SIDE ----\n");
     strcpy(received, transmitted);
-    simulate_error(received);
+
+    int flipped_positions[MAX_BITS];
+    int nflips = 0;
+    simulate_multi_error(received, flipped_positions, &nflips);
     printf("Received data                                : %s\n", received);
 
+    printf("\nNote: a frame's parity only catches an ODD number of bit flips inside\n");
+    printf("that frame. An EVEN number of flips (2, 4, ...) inside the same frame\n");
+    printf("cancels out and the parity check will wrongly say the frame is OK.\n");
+
     printf("\nChecking each frame:\n");
-    int pos = 0, error_found = 0, recovered_len = 0;
+    int pos = 0, error_found = 0, recovered_len = 0, silent_corruption = 0;
     char recovered_bits[MAX_BITS];
     frame_no = 1;
     for (int i = 0; i < len; i += 7) {
         int fsize = (len - i < 7) ? (len - i) : 7;
+        int frame_start = pos, frame_end = pos + fsize; /* inclusive, covers data+parity */
         int ones = 0;
         for (int j = 0; j < fsize; j++) {
             if (received[pos + j] == '1') ones++;
@@ -117,16 +160,27 @@ void parity() {
         }
         int total_ones = ones + (received[pos + fsize] == '1' ? 1 : 0);
 
+        int injected = 0;
+        for (int f = 0; f < nflips; f++)
+            if (flipped_positions[f] >= frame_start && flipped_positions[f] <= frame_end) injected++;
+
         char frame_str[9];
         strncpy(frame_str, received + pos, fsize + 1);
         frame_str[fsize + 1] = '\0';
 
-        if (is_no_error(total_ones, scheme)) {
-            printf("  Frame %d : %s  -> OK\n", frame_no, frame_str);
+        int detected = !is_no_error(total_ones, scheme);
+        printf("  Frame %d : %s  -> %s", frame_no, frame_str, detected ? "MISMATCH (error detected)" : "OK");
+
+        if (injected == 0) {
+            printf("\n");
+        } else if (injected % 2 == 1) {
+            printf("   [%d bit(s) flipped in this frame - ODD - correctly DETECTED]\n", injected);
         } else {
-            printf("  Frame %d : %s  -> MISMATCH (error detected in this frame)\n", frame_no, frame_str);
-            error_found = 1;
+            printf("   [%d bit(s) flipped in this frame - EVEN - NOT DETECTED, parity still matches!]\n", injected);
+            silent_corruption = 1;
         }
+
+        if (detected) error_found = 1;
         pos += fsize + 1;
         frame_no++;
     }
@@ -137,8 +191,17 @@ void parity() {
         char recovered_str[MAX_STR];
         bits_to_str(recovered_bits, recovered_str);
         printf("Recovered message (string)                   : %s\n", recovered_str);
+        if (silent_corruption) {
+            printf("WARNING: %d bit(s) were actually flipped during transmission, but every\n", nflips);
+            printf("affected frame had an EVEN flip count, so parity could not catch it.\n");
+            printf("The 'recovered' message above may NOT be the original message!\n");
+        }
     } else {
         printf("\nResult : ERROR DETECTED\n");
+        if (silent_corruption) {
+            printf("(Note: some frame(s) above were also silently corrupted by an EVEN\n");
+            printf("number of flips and did not trigger a mismatch on their own.)\n");
+        }
     }
 }
 
@@ -179,53 +242,55 @@ int divides_evenly(const char *dividend, const char *gen) {
 
 /* Keeps asking for a generator until it satisfies all 4 CRC design criteria.
    data_len = length (in bits) of the data the generator will protect. */
-/* Keeps asking for a generator until it satisfies all CRC design criteria.
-   (Criterion 1, 2 and 4 are checked. Criterion 3 is omitted because
-   it depends on the frame length and incorrectly rejects generators
-   like 1001 when checked this way.) */
-void get_valid_generator(char *gen, int data_len)
-{
-    while (1)
-    {
-        printf("Enter generator polynomial bits (e.g. 1001): ");
+void get_valid_generator(char *gen, int data_len) {
+    while (1) {
+        printf("Enter generator polynomial bits (e.g. 1001), or press 0 for default 1001: ");
         scanf("%s", gen);
+        if (strcmp(gen, "0") == 0) strcpy(gen, "1001");
 
         char fails[4][160];
         int nfail = 0;
         int glen = strlen(gen);
 
-        /* Criterion 1 : At least two 1's */
         if (count_ones(gen) < 2)
-        {
-            strcpy(fails[nfail++],
-                   "Criterion 1 failed: generator must have at least two 1's.");
-        }
+            strcpy(fails[nfail++], "Criterion 1 failed: generator must have at least two terms (at least two 1's).");
 
-        /* Criterion 2 : Last bit must be 1 */
         if (gen[glen - 1] != '1')
-        {
-            strcpy(fails[nfail++],
-                   "Criterion 2 failed: last bit (x^0 coefficient) must be 1.");
-        }
+            strcpy(fails[nfail++], "Criterion 2 failed: coefficient of x^0 (the last bit) must be 1.");
 
-        /* Criterion 4 : Must contain (x + 1) as a factor */
         if (!divides_evenly(gen, "11"))
-        {
-            strcpy(fails[nfail++],
-                   "Criterion 4 failed: generator must be divisible by 11 (x + 1).");
+            strcpy(fails[nfail++], "Criterion 4 failed: generator must have the factor (x + 1), i.e. it must be evenly divisible by 11.");
+
+        int r = glen - 1;
+        int n = data_len + r; /* total length of data+redundancy stream */
+        int violates = 0, violating_t = -1;
+        for (int tt = 2; tt <= n - 1; tt++) {
+            if (tt + 1 < glen) continue; /* pattern shorter than generator, skip */
+            char pattern[MAX_BITS + 8];
+            pattern[0] = '1';
+            for (int k = 1; k < tt; k++) pattern[k] = '0';
+            pattern[tt] = '1';
+            pattern[tt + 1] = '\0';
+            if (divides_evenly(pattern, gen)) {
+                violates = 1;
+                violating_t = tt;
+                break;
+            }
+        }
+        if (violates) {
+            char buf[160];
+            sprintf(buf, "Criterion 3 failed: generator divides x^%d + 1, which it should not.", violating_t);
+            strcpy(fails[nfail++], buf);
         }
 
-        if (nfail == 0)
-        {
+        if (nfail == 0) {
             printf("Generator accepted: %s\n", gen);
             return;
         }
 
         printf("Generator rejected. Issue(s) found:\n");
-        for (int i = 0; i < nfail; i++)
-            printf("  - %s\n", fails[i]);
-
-        printf("Please enter a different generator.\n\n");
+        for (int i = 0; i < nfail; i++) printf("  - %s\n", fails[i]);
+        printf("Please enter a different generator.\n");
     }
 }
 
