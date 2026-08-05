@@ -18,6 +18,7 @@ int main()
         exit(EXIT_FAILURE);
     }
 
+    // Create shared memory
     shmid = shmget(4777, sizeof(int) * size, IPC_CREAT | 0666);
 
     if (shmid == -1)
@@ -29,6 +30,7 @@ int main()
 
     printf("Shared memory created successfully.\n");
 
+    // Attach shared memory
     buf = (int *)shmat(shmid, NULL, 0);
 
     if (buf == (void *)-1)
@@ -40,17 +42,7 @@ int main()
 
     printf("Shared memory attached successfully.\n");
 
-    printf("\n========== PRODUCER ==========\n");
-
-    for (i = 0; i < size; i++)
-    {
-        printf("Enter data %d : ", i + 1);
-        scanf("%d", &num);
-        buf[i] = num;
-    }
-
-    printf("\nAll data written successfully.\n");
-
+    // Fork the process
     pid_t pid = fork();
 
     if (pid < 0)
@@ -62,29 +54,19 @@ int main()
 
     if (pid == 0)
     {
-        printf("\n========== CONSUMER ==========\n");
+        // ==================== PRODUCER (CHILD) ====================
+        printf("\n========== PRODUCER (CHILD) ==========\n");
 
         for (i = 0; i < size; i++)
         {
-            printf("Data[%d] = %d\n", i + 1, buf[i]);
+            printf("Enter data %d : ", i + 1);
+            scanf("%d", &num);
+            buf[i] = num;
         }
 
-        if (shmdt(buf) == -1)
-        {
-            perror("Error");
-            printf("Consumer failed to detach shared memory.\n");
-        }
-        else
-        {
-            printf("\nConsumer detached from shared memory successfully.\n");
-        }
+        printf("\nAll data written successfully by Producer.\n");
 
-        exit(0);
-    }
-    else
-    {
-        wait(NULL);
-
+        // Detach from shared memory
         if (shmdt(buf) == -1)
         {
             perror("Error");
@@ -95,6 +77,33 @@ int main()
             printf("Producer detached from shared memory successfully.\n");
         }
 
+        exit(0);
+    }
+    else
+    {
+        // ==================== CONSUMER (PARENT) ====================
+        // Parent waits for the child (Producer) to finish writing data
+        wait(NULL);
+
+        printf("\n========== CONSUMER (PARENT) ==========\n");
+
+        for (i = 0; i < size; i++)
+        {
+            printf("Data[%d] = %d\n", i + 1, buf[i]);
+        }
+
+        // Detach from shared memory
+        if (shmdt(buf) == -1)
+        {
+            perror("Error");
+            printf("Consumer failed to detach shared memory.\n");
+        }
+        else
+        {
+            printf("\nConsumer detached from shared memory successfully.\n");
+        }
+
+        // Clean up and delete the shared memory segment
         if (shmctl(shmid, IPC_RMID, NULL) == -1)
         {
             perror("Error");
