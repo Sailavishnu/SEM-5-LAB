@@ -1,57 +1,69 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/types.h>
 #include <unistd.h>
 
-int main() {
-    int shmid, num, *buf, i, c;
-    int size = 10;
-    
-    shmid = shmget(2461,sizeof(int)*(size + 4),IPC_CREAT|00600);
-    if(shmid == -1){
-       perror("shmget");
-       return 1;
-    }
-    
-    buf = (int*)shmat(shmid, NULL, 0);
-    if(buf == (int*)-1){
-       perror("shmat");
-       return 1;
+#define SIZE 10
+
+int main()
+{
+    int shmid;
+    int *buf;
+
+    // Access existing shared memory
+    shmid = shmget(4777, sizeof(int) * (SIZE + 2), 0666);
+
+    if (shmid == -1)
+    {
+        perror("Error");
+        printf("\nShared memory not found.\n");
+        printf("Please execute the Producer program first.\n");
+        exit(EXIT_FAILURE);
     }
 
-    if(buf[12] != 1){
-       buf[10] = 0;
-       buf[11] = 0;
+    printf("Shared memory located successfully.\n");
+
+    // Attach shared memory
+    buf = (int *)shmat(shmid, NULL, 0);
+
+    if (buf == (void *)-1)
+    {
+        perror("Error");
+        printf("\nFailed to attach shared memory.\n");
+        exit(EXIT_FAILURE);
     }
-    
-    buf[13] = 1;
-    
-    while(1){
-       while (buf[11] == buf[10]);
-       
-       num = buf[buf[11]];
-       printf("Consumed Data: %d\n", num);
-       
-       buf[11] = (buf[11] + 1) % size;
-       
-       printf("Enter 1 to continue:");
-       scanf("%d",&c);
-       if(c != 1){
-	  break;
-       }
+
+    printf("Shared memory attached successfully.\n");
+
+    printf("\n========== CONSUMER ==========\n");
+
+    for (int i = 0; i < SIZE; i++)
+    {
+        printf("Data[%d] = %d\n", i + 1, buf[buf[11]]);
+        buf[11] = (buf[11] + 1) % SIZE;
     }
-    
-    buf[13] = 0;
-    
-    if(buf[12] == 0){
-       shmdt(buf);
-       shmctl(shmid, IPC_RMID, NULL);
-    } 
-    else{
-       shmdt(buf);
+
+    if (shmdt(buf) == -1)
+    {
+        perror("Error");
+        printf("Failed to detach shared memory.\n");
     }
-    
+    else
+    {
+        printf("\nConsumer detached successfully.\n");
+    }
+
+    if (shmctl(shmid, IPC_RMID, NULL) == -1)
+    {
+        perror("Error");
+        printf("Failed to delete shared memory.\n");
+    }
+    else
+    {
+        printf("Shared memory deleted successfully.\n");
+    }
+
     return 0;
 }

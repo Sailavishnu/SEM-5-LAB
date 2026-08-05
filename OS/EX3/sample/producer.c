@@ -1,59 +1,66 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/types.h>
 #include <unistd.h>
 
-int main() {
-    int shmid, num, *buf, i, c;
-    int size = 10;
-    
-    shmid = shmget(2461,sizeof(int)*(size + 4),IPC_CREAT|00600);
-    if(shmid == -1){
-       perror("shmget");
-       return 1;
-    }
-    
-    buf = (int*)shmat(shmid, NULL, 0);
-    if(buf == (int*)-1) {
-       perror("shmat");
-       return 1;
-    }
-    
-    if(buf[13] != 1){
-        buf[10] = 0;
-        buf[11] = 0;
-    }
-    buf[12] = 1;
-    
-    while(1){
-       
-       while (((buf[10] + 1) % size) == buf[11]);
-       
-       printf("Enter Data: ");
-       scanf("%d", &num);
-       
-       buf[buf[10]] = num;
-       buf[10] = (buf[10] + 1) % size;
+#define SIZE 10
 
-       printf("Enter 1 to continue:");
-       scanf("%d",&c);
-       if(c != 1){
-	  break;
-       }
+int main()
+{
+    int shmid;
+    int *buf;
+
+    // Create shared memory
+    shmid = shmget(4777, sizeof(int) * (SIZE + 2), IPC_CREAT | 0666);
+
+    if (shmid == -1)
+    {
+        perror("Error");
+        printf("\nFailed to create shared memory.\n");
+        exit(EXIT_FAILURE);
     }
-    
-    buf[12] = 0;
-    
-    if(buf[13] == 0){
-       shmdt(buf);
-       shmctl(shmid, IPC_RMID, NULL);
-    } 
-    else{
-       shmdt(buf);
+
+    printf("Shared memory created successfully.\n");
+
+    // Attach shared memory
+    buf = (int *)shmat(shmid, NULL, 0);
+
+    if (buf == (void *)-1)
+    {
+        perror("Error");
+        printf("\nFailed to attach shared memory.\n");
+        exit(EXIT_FAILURE);
     }
-    
+
+    printf("Shared memory attached successfully.\n");
+
+    // Initialize
+    buf[10] = 0;   // in
+    buf[11] = 0;   // out
+
+    printf("\n========== PRODUCER ==========\n");
+
+    for (int i = 0; i < SIZE; i++)
+    {
+        printf("Enter data %d : ", i + 1);
+        scanf("%d", &buf[buf[10]]);
+
+        buf[10] = (buf[10] + 1) % SIZE;
+    }
+
+    printf("\nAll data written successfully.\n");
+
+    if (shmdt(buf) == -1)
+    {
+        perror("Error");
+        printf("Failed to detach shared memory.\n");
+    }
+    else
+    {
+        printf("Producer detached from shared memory successfully.\n");
+    }
+
     return 0;
 }
-
