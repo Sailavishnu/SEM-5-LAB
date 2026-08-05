@@ -9,10 +9,15 @@
 int main()
 {
     int shmid, *buf;
-    int i, num;
-    int size = 10;
+    int i, num, size;
 
-    // Create Shared Memory
+    printf("Enter the size of the shared memory: ");
+    if (scanf("%d", &size) != 1 || size <= 0) 
+    {
+        printf("Invalid size entered.\n");
+        exit(EXIT_FAILURE);
+    }
+
     shmid = shmget(4777, sizeof(int) * size, IPC_CREAT | 0666);
 
     if (shmid == -1)
@@ -24,7 +29,6 @@ int main()
 
     printf("Shared memory created successfully.\n");
 
-    // Attach Shared Memory
     buf = (int *)shmat(shmid, NULL, 0);
 
     if (buf == (void *)-1)
@@ -35,8 +39,6 @@ int main()
     }
 
     printf("Shared memory attached successfully.\n");
-
-    /* Producer */
 
     printf("\n========== PRODUCER ==========\n");
 
@@ -49,7 +51,6 @@ int main()
 
     printf("\nAll data written successfully.\n");
 
-    // Create Child Process
     pid_t pid = fork();
 
     if (pid < 0)
@@ -61,8 +62,6 @@ int main()
 
     if (pid == 0)
     {
-        /* Consumer */
-
         printf("\n========== CONSUMER ==========\n");
 
         for (i = 0; i < size; i++)
@@ -84,7 +83,6 @@ int main()
     }
     else
     {
-        // Parent waits for child
         wait(NULL);
 
         if (shmdt(buf) == -1)
