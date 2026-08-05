@@ -1,0 +1,46 @@
+# =========================
+# Executables
+# =========================
+*.exe
+*.out
+
+# Files named "out" (without extension)
+out
+
+# Object files
+*.o
+*.obj
+
+# Static and dynamic libraries
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+
+# Debug files
+*.pdb
+*.ilk
+*.idb
+
+# Precompiled headers
+*.gch
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.log
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+Desktop.ini
