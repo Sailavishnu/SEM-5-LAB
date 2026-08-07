@@ -4,9 +4,10 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <unistd.h>
+
 int main()
 {
-   int shmid, num, *buf, i;
+   int shmid, num, *buf;
    int size = 10;
    char c;
 
@@ -23,18 +24,20 @@ int main()
       perror("shmat");
       return 1;
    }
-   if (buf[12] != 1)
+
+   // Initialize on first run
+   if (buf[12] != 1 && buf[13] != 1)
    {
       buf[10] = 0;
       buf[11] = 0;
    }
 
-   buf[13] = 1;
+   buf[13] = 1;  // Consumer is running
 
    while (1)
    {
-      while (buf[11] == buf[10])
-         ;
+      // Wait for buffer data (queue not empty)
+      while (buf[11] == buf[10]);
 
       num = buf[buf[11]];
       printf("Consumed Data: %d\n", num);
@@ -43,13 +46,15 @@ int main()
 
       printf("Do you want to continue (y/n): ");
       scanf("%c", &c);
+      getchar();
+
       if (c != 'y' && c != 'Y')
       {
          break;
       }
    }
 
-   buf[13] = 0;
+   buf[13] = 0;  // Consumer stopped
 
    if (buf[12] == 0)
    {

@@ -4,9 +4,10 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <unistd.h>
+
 int main()
 {
-   int shmid, num, *buf, i;
+   int shmid, num, *buf;
    int size = 10;
    char c;
 
@@ -24,18 +25,19 @@ int main()
       return 1;
    }
 
-   if (buf[13] != 1)
+   // Initialize on first run
+   if (buf[12] != 1 && buf[13] != 1)
    {
       buf[10] = 0;
       buf[11] = 0;
    }
-   buf[12] = 1;
+
+   buf[12] = 1;  // Producer is running
 
    while (1)
    {
-
-      while (((buf[10] + 1) % size) == buf[11])
-         ;
+      // Wait for buffer space (circular queue not full)
+      while (((buf[10] + 1) % size) == buf[11]);
 
       printf("Enter Data: ");
       scanf("%d", &num);
@@ -43,15 +45,18 @@ int main()
 
       buf[buf[10]] = num;
       buf[10] = (buf[10] + 1) % size;
+
       printf("Do you want to continue (y/n): ");
       scanf("%c", &c);
+      getchar();
+
       if (c != 'y' && c != 'Y')
       {
          break;
       }
    }
 
-   buf[12] = 0;
+   buf[12] = 0;  // Producer stopped
 
    if (buf[13] == 0)
    {

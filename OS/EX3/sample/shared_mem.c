@@ -54,7 +54,6 @@ int main()
 
     if (pid == 0)
     {
-        // ==================== PRODUCER (CHILD) ====================
         printf("\n========== PRODUCER (CHILD) ==========\n");
 
         for (i = 0; i < size; i++)
@@ -81,8 +80,6 @@ int main()
     }
     else
     {
-        // ==================== CONSUMER (PARENT) ====================
-        // Parent waits for the child (Producer) to finish writing data
         wait(NULL);
 
         printf("\n========== CONSUMER (PARENT) ==========\n");

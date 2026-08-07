@@ -16,6 +16,16 @@ void str_to_bits(const char *str, char *bits) {
     bits[len * 8] = '\0';
 }
 
+void input_to_bits(const char *input, char *bits) {
+    if (input[0] == 'b' && (input[1] == '0' || input[1] == '1')) {
+        /* Binary input with 'b' prefix: copy directly */
+        strcpy(bits, input + 1);
+    } else {
+        /* String input: convert each char to binary using ASCII */
+        str_to_bits(input, bits);
+    }
+}
+
 void bits_to_str(const char *bits, char *str) {
     int nchars = strlen(bits) / 8;
     for (int i = 0; i < nchars; i++) {
@@ -101,12 +111,12 @@ void parity() {
     int len;
 
     printf("\n---- PARITY (7-bit frames) : SENDER SIDE ----\n");
-    printf("Enter string message: ");
+    printf("Enter string message (or b<binary> for binary): ");
     scanf("%s", input);
 
     int scheme = ask_parity_scheme();
 
-    str_to_bits(input, msg);
+    input_to_bits(input, msg);
     len = strlen(msg);
     printf("Original message (m) in binary              : %s\n", msg);
     printf("Message split into 7-bit frames, each followed by its own parity bit:\n");
@@ -300,9 +310,9 @@ void crc_technique() {
     char dividend[MAX_BITS], remainder[32], transmitted[MAX_BITS];
 
     printf("\n---- CRC : SENDER SIDE ----\n");
-    printf("Enter string message: ");
+    printf("Enter string message (or b<binary> for binary): ");
     scanf("%s", input);
-    str_to_bits(input, data);
+    input_to_bits(input, data);
     printf("Source data (binary)             : %s\n", data);
 
     get_valid_generator(gen, strlen(data));
@@ -374,9 +384,9 @@ void checksum_technique() {
     int n;
 
     printf("\n---- CHECKSUM : SENDER SIDE ----\n");
-    printf("Enter string message: ");
+    printf("Enter string message (or b<binary> for binary): ");
     scanf("%s", input);
-    str_to_bits(input, bits);
+    input_to_bits(input, bits);
 
     printf("Enter block size n (0 for default n = 8): ");
     scanf("%d", &n);
