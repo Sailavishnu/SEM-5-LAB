@@ -9,62 +9,47 @@ int main()
 {
    int shmid, num, *buf;
    int size = 10;
-   char c;
 
-   shmid = shmget(2461, sizeof(int) * (size + 4), IPC_CREAT | 00600);
-   if (shmid == -1)
+   printf("=== CONSUMER STARTED ===\n");
+   printf("Waiting for producer to create shared memory...\n");
+
+   // Attach to shared memory (size = 0 for existing segment)
+   while ((shmid = shmget(2461, 0, 0666)) == -1)
    {
-      perror("shmget");
-      return 1;
+      printf(".");
+      fflush(stdout);
+      sleep(1);
    }
+
+   printf("\nShared memory attached!\n\n");
 
    buf = (int *)shmat(shmid, NULL, 0);
-   if (buf == (int *)-1)
-   {
-      perror("shmat");
-      return 1;
-   }
 
-   // Initialize on first run
-   if (buf[12] != 1 && buf[13] != 1)
-   {
-      buf[10] = 0;
-      buf[11] = 0;
-   }
-
-   buf[13] = 1;  // Consumer is running
+   printf("Waiting for data...\n\n");
 
    while (1)
    {
-      // Wait for buffer data (queue not empty)
-      while (buf[11] == buf[10]);
-
-      num = buf[buf[11]];
-      printf("Consumed Data: %d\n", num);
-
-      buf[11] = (buf[11] + 1) % size;
-
-      printf("Do you want to continue (y/n): ");
-      scanf("%c", &c);
-      getchar();
-
-      if (c != 'y' && c != 'Y')
+      // Case 2: Wait for data (production count > consumption count)
+      while (buf[14] == buf[15])
       {
-         break;
+         if (buf[12] == 0)  // Producer stopped AND no more data
+         {
+            printf("\n[CONSUMER DONE - Producer finished]\n");
+            goto cleanup;
+         }
+         // Otherwise just wait, don't print spam
       }
+
+      // Case 3: Consume data
+      num = buf[buf[11]];
+      buf[11] = (buf[11] + 1) % size;
+      buf[15]++;  // Signal: increment consumption count
+
+      printf("  ← Consumed: %d (count=%d)\n", num, buf[15]);
    }
 
-   buf[13] = 0;  // Consumer stopped
-
-   if (buf[12] == 0)
-   {
-      shmdt(buf);
-      shmctl(shmid, IPC_RMID, NULL);
-   }
-   else
-   {
-      shmdt(buf);
-   }
-
+cleanup:
+   shmdt(buf);
+   shmctl(shmid, IPC_RMID, NULL);
    return 0;
 }
