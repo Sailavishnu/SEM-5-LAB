@@ -28,27 +28,64 @@ int is_accepting(int state) {
 
 void test_string(char *input) {
     int current = start_state;
+    char token[100] = "";
+    int token_len = 0;
     
     for (int i = 0; input[i] != '\0'; i++) {
         char sym[20];
         sprintf(sym, "%c", input[i]);
         
         int sym_idx = get_symbol_idx(sym);
+        
+        // Invalid symbol found - finalize current token
         if (sym_idx == -1) {
-            printf("REJECTED (invalid symbol)\n");
-            return;
+            if (token_len > 0) {
+                if (is_accepting(current)) {
+                    printf("Recognized token : <%s, %s>\n", token, states[current]);
+                } else {
+                    printf("Unrecognized token : %s\n", token);
+                }
+            }
+            // Reset for next token
+            current = start_state;
+            token_len = 0;
+            memset(token, 0, sizeof(token));
+            continue;
         }
         
+        // Valid symbol - try transition
         int next = trans[current][sym_idx];
         if (next == -1) {
-            printf("REJECTED (no transition)\n");
-            return;
+            // No transition available - finalize current token
+            if (token_len > 0) {
+                if (is_accepting(current)) {
+                    printf("Recognized token : <%s, %s>\n", token, states[current]);
+                } else {
+                    printf("Unrecognized token : %s\n", token);
+                }
+            }
+            // Start new token from this symbol
+            current = start_state;
+            int next2 = trans[current][sym_idx];
+            if (next2 != -1) {
+                token[token_len++] = input[i];
+                current = next2;
+            }
+        } else {
+            // Valid transition - continue building token
+            token[token_len++] = input[i];
+            current = next;
         }
-        
-        current = next;
     }
     
-    printf(is_accepting(current) ? "ACCEPTED\n" : "REJECTED (not accepting)\n");
+    // Finalize remaining token at end of string
+    if (token_len > 0) {
+        if (is_accepting(current)) {
+            printf("Recognized token : <%s, %s>\n", token, states[current]);
+        } else {
+            printf("Unrecognized token : %s\n", token);
+        }
+    }
 }
 
 int main() {
