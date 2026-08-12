@@ -1,0 +1,346 @@
+/* =========================================================
+   SKYVISTA AIRLINES - BOOKING PAGE STYLES (booking.css)
+   HTML & CSS Student Assignment Style
+   
+   CSS CONCEPTS COVERED:
+   1. Positioning: static, relative, absolute, fixed, sticky
+   2. Shadows: box-shadow & text-shadow
+   3. Box Model: margin, padding, border, border-radius, box-sizing
+   4. Table & Form Control Layouts
+   ========================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f4f8;
+    color: #2c3e50;
+    line-height: 1.6;
+}
+
+/* =========================================================
+   1. POSITIONING: STICKY & RELATIVE (HEADER & NAVBAR)
+   ========================================================= */
+header {
+    position: relative; /* CONCEPT: RELATIVE POSITIONING */
+    z-index: 100;
+}
+
+.navbar {
+    position: sticky; /* CONCEPT: STICKY POSITIONING */
+    top: 0;
+    z-index: 1000;
+    background: #0f2b48;
+    padding: 1rem 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* CONCEPT: BOX-SHADOW */
+}
+
+/* LOGO WITH TEXT-SHADOW */
+.logo a {
+    color: #ffffff;
+    font-size: 1.4rem;
+    font-weight: bold;
+    text-decoration: none;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* CONCEPT: TEXT-SHADOW */
+}
+
+.logo span {
+    color: #38bdf8;
+}
+
+.nav-links a {
+    color: #e2e8f0;
+    text-decoration: none;
+    margin-left: 1.5rem;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+    color: #38bdf8;
+    text-decoration: underline;
+}
+
+/* BANNER */
+.page-banner {
+    position: relative; /* CONCEPT: RELATIVE POSITIONING */
+    background: linear-gradient(135deg, #0f2b48 0%, #1e40af 100%);
+    color: #ffffff;
+    text-align: center;
+    padding: 3rem 1rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* BOX-SHADOW */
+}
+
+.page-banner h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4); /* TEXT-SHADOW */
+}
+
+.page-banner h1 span {
+    color: #38bdf8;
+}
+
+.page-banner p {
+    font-size: 1.1rem;
+    color: #cbd5e1;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3); /* TEXT-SHADOW */
+}
+
+/* =========================================================
+   2. POSITIONING: STATIC & RELATIVE (FORM CONTAINER & FIELDSETS)
+   ========================================================= */
+.form-container {
+    position: static; /* CONCEPT: STATIC POSITIONING */
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+fieldset {
+    position: relative; /* CONCEPT: RELATIVE POSITIONING FOR CONTAINER */
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 20px rgba(15, 43, 72, 0.08); /* BOX-SHADOW */
+}
+
+legend {
+    position: relative; /* CONCEPT: RELATIVE POSITIONING */
+    background: #0f2b48;
+    color: #ffffff;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 1.05rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); /* BOX-SHADOW */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4); /* TEXT-SHADOW */
+}
+
+/* TABLE LAYOUT FOR FORM */
+.form-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.form-table tr {
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.form-table tr:last-child {
+    border-bottom: none;
+}
+
+.form-table td {
+    padding: 0.75rem 0.5rem;
+    vertical-align: middle;
+}
+
+.form-table td:first-child {
+    width: 38%;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* INPUT CONTROLS STYLING */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+input[list],
+select,
+textarea {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background-color: #f8fafc;
+    transition: all 0.2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #0284c7;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25); /* FOCUS BOX-SHADOW */
+}
+
+input[type="color"] {
+    width: 50px;
+    height: 35px;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+input[type="range"] {
+    width: 70%;
+    vertical-align: middle;
+}
+
+output {
+    font-weight: bold;
+    color: #0284c7;
+    margin-left: 0.5rem;
+}
+
+input[type="file"] {
+    padding: 0.3rem;
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+    accent-color: #0284c7;
+    cursor: pointer;
+    margin-right: 0.3rem;
+}
+
+/* BUTTONS */
+.btn-submit {
+    background: #0284c7;
+    color: #ffffff;
+    border: none;
+    padding: 0.8rem 1.8rem;
+    font-size: 1rem;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3); /* BOX-SHADOW */
+    transition: all 0.2s ease;
+}
+
+.btn-submit:hover {
+    background: #0369a1;
+    box-shadow: 0 6px 14px rgba(2, 132, 199, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-reset {
+    background: #e2e8f0;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    padding: 0.8rem 1.4rem;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.btn-reset:hover {
+    background: #cbd5e1;
+}
+
+.btn-secondary {
+    background: #f1f5f9;
+    color: #0284c7;
+    border: 1px solid #0284c7;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background: #e0f2fe;
+}
+
+.form-actions {
+    position: relative; /* CONCEPT: RELATIVE POSITIONING */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-bottom: 3rem;
+}
+
+.image-submit-box {
+    text-align: center;
+    border-left: 2px solid #cbd5e1;
+    padding-left: 1rem;
+}
+
+.image-submit-box input[type="image"] {
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+
+.image-submit-box input[type="image"]:hover {
+    transform: scale(1.1);
+}
+
+/* =========================================================
+   3. POSITIONING: FIXED (FLOATING BACK TO TOP BUTTON)
+   ========================================================= */
+.floating-top-btn {
+    position: fixed; /* CONCEPT: FIXED POSITIONING */
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: #0284c7;
+    color: #ffffff;
+    padding: 0.6rem 1.1rem;
+    border-radius: 50px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* BOX-SHADOW */
+    z-index: 999;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.floating-top-btn:hover {
+    background: #0369a1;
+    transform: translateY(-2px);
+}
+
+/* FOOTER */
+footer {
+    position: static; /* CONCEPT: STATIC POSITIONING */
+    background: #0f2b48;
+    color: #94a3b8;
+    text-align: center;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05); /* BOX-SHADOW */
+}
+
+/* RESPONSIVE MEDIA QUERY */
+@media (max-width: 650px) {
+    .form-table td:first-child,
+    .form-table td {
+        display: block;
+        width: 100%;
+    }
+    .form-table td:first-child {
+        padding-bottom: 0.2rem;
+    }
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .image-submit-box {
+        border-left: none;
+        border-top: 2px solid #cbd5e1;
+        padding-left: 0;
+        padding-top: 1rem;
+    }
+}
