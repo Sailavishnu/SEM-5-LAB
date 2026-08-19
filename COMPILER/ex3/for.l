@@ -3,12 +3,6 @@
 #include <stdlib.h>
 FILE *yyin;
 
-/* Tracks whether the previous token behaves like a "value"
-   (identifier, number, ')', ']') so we can tell:
-     ++x  vs  x++   (prefix vs postfix)
-     -x   vs  x-y   (unary vs binary)
-   1 = previous token was a value/operand
-   0 = previous token was not (start of expr, operator, '(', ',', ';', keyword, etc.) */
 int last_was_operand = 0;
 %}
 
@@ -70,17 +64,10 @@ int last_was_operand = 0;
 
 [0-9]+(\.[0-9]+)?   { printf("<NUMBER, %s>\n", yytext); last_was_operand = 1; }
 
-"("   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 0; }
-")"   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 1; }
-"{"   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 0; }
-"}"   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 0; }
-"["   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 0; }
-"]"   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 1; }
-";"   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 0; }
-","   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 0; }
-"."   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 0; }
+"("|"{"|"}"|"["|";"|","|"."   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 0; }
+")"|"]"   { printf("<PUNCTUATION, %s>\n", yytext); last_was_operand = 1; }
 
-[ \t\n]+   { /* whitespace: ignore, don't touch last_was_operand */ }
+[ \t\n]+   { }
 
 .   { printf("<UNKNOWN, %s>\n", yytext); last_was_operand = 0; }
 
@@ -95,7 +82,6 @@ int main()
 {
     yyin = fopen("input.txt", "r");
     if (!yyin)
-    
     {
         printf("Error: Could not open input.txt!\n");
         return 1;
