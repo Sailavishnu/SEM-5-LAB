@@ -34,37 +34,33 @@ void test_string(char *input) {
     for (int i = 0; input[i] != '\0'; i++) {
         char sym[20];
         sprintf(sym, "%c", input[i]);
-        
         int sym_idx = get_symbol_idx(sym);
         
-        // Invalid symbol found - finalize current token
+        // Invalid symbol - output token and this symbol
         if (sym_idx == -1) {
             if (token_len > 0) {
-                if (is_accepting(current)) {
-                    printf("Recognized token : <%s, %s>\n", token, states[current]);
-                } else {
-                    printf("Unrecognized token : %s\n", token);
-                }
+                if (is_accepting(current))
+                    printf("Recognized token : <%s,%s>\n", token, states[current]);
+                else
+                    printf("Unrecognized token : <%s>\n", token);
+                token_len = 0;
             }
-            // Reset for next token
+            printf("Unrecognized token : <%c>\n", input[i]);
             current = start_state;
-            token_len = 0;
-            memset(token, 0, sizeof(token));
             continue;
         }
         
-        // Valid symbol - try transition
+        // Valid symbol - check transition
         int next = trans[current][sym_idx];
         if (next == -1) {
-            // No transition available - finalize current token
+            // No transition - output token, reset, try this symbol
             if (token_len > 0) {
-                if (is_accepting(current)) {
-                    printf("Recognized token : <%s, %s>\n", token, states[current]);
-                } else {
-                    printf("Unrecognized token : %s\n", token);
-                }
+                if (is_accepting(current))
+                    printf("Recognized token : <%s,%s>\n", token, states[current]);
+                else
+                    printf("Unrecognized token : <%s>\n", token);
+                token_len = 0;
             }
-            // Start new token from this symbol
             current = start_state;
             int next2 = trans[current][sym_idx];
             if (next2 != -1) {
@@ -72,155 +68,89 @@ void test_string(char *input) {
                 current = next2;
             }
         } else {
-            // Valid transition - continue building token
+            // Valid transition - add to token
             token[token_len++] = input[i];
             current = next;
         }
     }
     
-    // Finalize remaining token at end of string
+    // Output final token
     if (token_len > 0) {
-        if (is_accepting(current)) {
-            printf("Recognized token : <%s, %s>\n", token, states[current]);
-        } else {
-            printf("Unrecognized token : %s\n", token);
-        }
+        if (is_accepting(current))
+            printf("Recognized token : <%s,%s>\n", token, states[current]);
+        else
+            printf("Unrecognized token : <%s>\n", token);
     }
 }
 
 int main() {
-    char temp[20];
+    char temp[20], input[100];
     int choice;
-    char input[100];
     
     printf("=== DFA LEXER ===\n\n");
-    
     printf("No. of states: ");
-    fflush(stdout);
-    if (scanf("%d", &num_states) != 1 || num_states <= 0 || num_states > MAX) {
-        printf("ERROR: Invalid states count (1-%d)\n", MAX);
-        return 1;
-    }
+    scanf("%d", &num_states);
     getchar();
     
-    printf("State names (space-separated): ");
-    fflush(stdout);
-    for (int i = 0; i < num_states; i++) {
-        if (scanf("%s", states[i]) != 1) {
-            printf("ERROR: Failed to read state\n");
-            return 1;
-        }
-    }
+    printf("State names: ");
+    for (int i = 0; i < num_states; i++)
+        scanf("%s", states[i]);
     getchar();
     
     printf("No. of symbols: ");
-    fflush(stdout);
-    if (scanf("%d", &num_symbols) != 1 || num_symbols <= 0 || num_symbols > MAX) {
-        printf("ERROR: Invalid symbols count (1-%d)\n", MAX);
-        return 1;
-    }
+    scanf("%d", &num_symbols);
     getchar();
     
-    printf("Symbol names (space-separated, can be strings): ");
-    fflush(stdout);
-    for (int i = 0; i < num_symbols; i++) {
-        if (scanf("%s", symbols[i]) != 1) {
-            printf("ERROR: Failed to read symbol\n");
-            return 1;
-        }
-    }
+    printf("Symbol names: ");
+    for (int i = 0; i < num_symbols; i++)
+        scanf("%s", symbols[i]);
     getchar();
     
     printf("Start state: ");
-    fflush(stdout);
-    if (scanf("%s", temp) != 1) {
-        printf("ERROR: Failed to read start state\n");
-        return 1;
-    }
+    scanf("%s", temp);
     getchar();
     start_state = get_state_idx(temp);
-    if (start_state == -1) {
-        printf("ERROR: Start state '%s' not found\n", temp);
-        return 1;
-    }
     
     printf("No. of accepting states: ");
-    fflush(stdout);
-    if (scanf("%d", &num_accepting) != 1 || num_accepting < 0) {
-        printf("ERROR: Invalid accepting states count\n");
-        return 1;
-    }
+    scanf("%d", &num_accepting);
     getchar();
     
     if (num_accepting > 0) {
-        printf("Accepting state names (space-separated): ");
-        fflush(stdout);
+        printf("Accepting states: ");
         for (int i = 0; i < num_accepting; i++) {
-            if (scanf("%s", temp) != 1) {
-                printf("ERROR: Failed to read accepting state\n");
-                return 1;
-            }
-            int idx = get_state_idx(temp);
-            if (idx == -1) {
-                printf("ERROR: Accepting state '%s' not found\n", temp);
-                return 1;
-            }
-            accepting[i] = idx;
+            scanf("%s", temp);
+            accepting[i] = get_state_idx(temp);
         }
         getchar();
     }
     
-    printf("\nTransition table (%d states x %d symbols):\n", num_states, num_symbols);
-    fflush(stdout);
+    printf("\nTransition table:\n");
     for (int i = 0; i < num_states; i++) {
         for (int j = 0; j < num_symbols; j++) {
-            char token[20];
-            if (scanf("%s", token) != 1) {
-                printf("ERROR: Failed to read transition\n");
-                return 1;
-            }
-            
-            if (strcmp(token, "#") == 0 || strcmp(token, "-1") == 0) {
+            scanf("%s", temp);
+            if (strcmp(temp, "#") == 0 || strcmp(temp, "-1") == 0)
                 trans[i][j] = -1;
-            } else {
-                int idx = get_state_idx(token);
-                if (idx == -1) {
-                    printf("ERROR: Invalid state '%s' in transition\n", token);
-                    return 1;
-                }
-                trans[i][j] = idx;
-            }
+            else
+                trans[i][j] = get_state_idx(temp);
         }
     }
     getchar();
     
-    printf("\nDFA initialized successfully!\n");
+    printf("\nDFA ready!\n");
     
-    do {
-        printf("\n1. Test string  2. Exit: ");
-        fflush(stdout);
-        if (scanf("%d", &choice) != 1) {
-            printf("ERROR: Invalid input\n");
-            while (getchar() != '\n');
-            continue;
-        }
+    while (1) {
+        printf("\n1. Test  2. Exit: ");
+        scanf("%d", &choice);
         getchar();
         
         if (choice == 1) {
-            printf("Input string: ");
-            fflush(stdout);
-            if (scanf("%s", input) != 1) {
-                printf("ERROR: Failed to read input\n");
-                continue;
-            }
+            printf("Input: ");
+            scanf("%s", input);
             getchar();
             test_string(input);
-        } else if (choice == 2) {
-            printf("Exit\n");
-        } else {
-            printf("ERROR: Invalid choice (1 or 2)\n");
-        }
-    } while (choice != 2);
+        } else
+            break;
+    }
     
     return 0;
 }
