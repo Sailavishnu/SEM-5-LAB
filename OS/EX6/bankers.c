@@ -2,90 +2,200 @@
 #define MAX_P 10
 #define MAX_R 10
 
-struct Bankers {
+struct Bankers
+{
     int p, r;
     int alloc[MAX_P][MAX_R], maxm[MAX_P][MAX_R], need[MAX_P][MAX_R], avail[MAX_R];
 };
 
-void inputData(struct Bankers *b) {
-    printf("Enter number of processes: "); scanf("%d", &b->p);
-    printf("Enter number of resource types: "); scanf("%d", &b->r);
+void inputData(struct Bankers *b)
+{
+    printf("Enter number of processes: ");
+    scanf("%d", &b->p);
+    printf("Enter number of resource types: ");
+    scanf("%d", &b->r);
 
-    printf("\nEnter Allocation Matrix:\n");
-    for (int i = 0; i < b->p; i++) { printf("P%d: ", i); for (int j = 0; j < b->r; j++) scanf("%d", &b->alloc[i][j]); }
+    printf("\nEnter Allocation Matrix (%d x %d, row-wise, space/newline separated):\n", b->p, b->r);
+    for (int i = 0; i < b->p; i++)
+        for (int j = 0; j < b->r; j++)
+            scanf("%d", &b->alloc[i][j]);
 
-    printf("\nEnter Max Matrix:\n");
-    for (int i = 0; i < b->p; i++) { printf("P%d: ", i); for (int j = 0; j < b->r; j++) scanf("%d", &b->maxm[i][j]); }
+    printf("\nEnter Max Matrix (%d x %d, row-wise, space/newline separated):\n", b->p, b->r);
+    for (int i = 0; i < b->p; i++)
+        for (int j = 0; j < b->r; j++)
+            scanf("%d", &b->maxm[i][j]);
 
-    printf("\nEnter Available Resources:\n");
-    for (int j = 0; j < b->r; j++) scanf("%d", &b->avail[j]);
+    printf("\nEnter Available Resources (%d values):\n", b->r);
+    for (int j = 0; j < b->r; j++)
+        scanf("%d", &b->avail[j]);
 }
 
-void calculateNeed(struct Bankers *b) {
+void calculateNeed(struct Bankers *b)
+{
     printf("\nNeed Matrix:\n");
-    for (int i = 0; i < b->p; i++) {
+    for (int i = 0; i < b->p; i++)
+    {
         printf("P%d: ", i);
-        for (int j = 0; j < b->r; j++) {
-            b->need[i][j] = b->maxm[i][j] - b->alloc[i][j];
-            printf("%d ", b->need[i][j]);
-        }
+        for (int j = 0; j < b->r; j++)
+            printf("%d ", b->need[i][j] = b->maxm[i][j] - b->alloc[i][j]);
         printf("\n");
     }
 }
 
-/* returns 1 if safe (fills safeSeq/count), 0 if not safe.
-   prints Work after every process that gets picked */
-int checkSafety(struct Bankers *b, int safeSeq[], int *count) {
+int checkSafety(struct Bankers *b, int seq[], int *count)
+{
     int work[MAX_R], finish[MAX_P] = {0};
     *count = 0;
-    for (int j = 0; j < b->r; j++) work[j] = b->avail[j];
-
+    for (int j = 0; j < b->r; j++)
+        work[j] = b->avail[j];
     printf("\nInitial Work = ");
-    for (int j = 0; j < b->r; j++) printf("%d ", work[j]);
+    for (int j = 0; j < b->r; j++)
+        printf("%d ", work[j]);
     printf("\n");
 
-    while (*count < b->p) {
+    while (*count < b->p)
+    {
         int found = 0;
-        for (int i = 0; i < b->p; i++) {
-            if (finish[i]) continue;
-            int canRun = 1;
-            for (int j = 0; j < b->r; j++) if (b->need[i][j] > work[j]) { canRun = 0; break; }
-            if (canRun) {
-                for (int j = 0; j < b->r; j++) work[j] += b->alloc[i][j];
-                safeSeq[(*count)++] = i;
+        for (int i = 0; i < b->p; i++)
+        {
+            if (finish[i])
+                continue;
+            int ok = 1;
+            for (int j = 0; j < b->r; j++)
+                if (b->need[i][j] > work[j])
+                {
+                    ok = 0;
+                    break;
+                }
+            if (ok)
+            {
+                for (int j = 0; j < b->r; j++)
+                    work[j] += b->alloc[i][j];
+                seq[(*count)++] = i;
                 finish[i] = 1;
                 found = 1;
-
                 printf("P%d runs -> Work = ", i);
-                for (int j = 0; j < b->r; j++) printf("%d ", work[j]);
+                for (int j = 0; j < b->r; j++)
+                    printf("%d ", work[j]);
                 printf("\n");
             }
         }
-        if (!found) break;
+        if (!found)
+            break;
     }
-
     return (*count == b->p);
 }
 
-void printSafeSequence(int safeSeq[], int count) {
+void printSafeSequence(int seq[], int count)
+{
     printf("Safe sequence: ");
     for (int i = 0; i < count; i++)
-        printf("P%d%s", safeSeq[i], i == count - 1 ? "\n" : " -> ");
+        printf("P%d%s", seq[i], i == count - 1 ? "\n" : " -> ");
 }
 
-int main() {
+void showInitialSafety(struct Bankers *b)
+{
+    int seq[MAX_P], count;
+    if (checkSafety(b, seq, &count))
+    {
+        printf("\nSystem is in SAFE state.\n");
+        printSafeSequence(seq, count);
+    }
+    else
+        printf("\nSystem is in UNSAFE state (deadlock possible).\n");
+}
+
+void requestResources(struct Bankers *b, int pid, int req[])
+{
+    printf("\n--- Request from P%d: ", pid);
+    for (int j = 0; j < b->r; j++)
+        printf("%d ", req[j]);
+    printf("---\n");
+
+    for (int j = 0; j < b->r; j++)
+    {
+        if (req[j] > b->need[pid][j])
+        {
+            printf("Request denied: exceeds P%d's declared Need.\n", pid);
+            printf("  Resource R%d -> Requested = %d, Need = %d (Requested > Need, invalid)\n",
+                   j, req[j], b->need[pid][j]);
+            return;
+        }
+    }
+
+    for (int j = 0; j < b->r; j++)
+    {
+        if (req[j] > b->avail[j])
+        {
+            printf("Request denied: not enough resources available right now. P%d must wait.\n", pid);
+            printf("  Resource R%d -> Requested = %d, Available = %d (Requested > Available)\n",
+                   j, req[j], b->avail[j]);
+            return;
+        }
+    }
+
+    for (int j = 0; j < b->r; j++)
+    {
+        b->avail[j] -= req[j];
+        b->alloc[pid][j] += req[j];
+        b->need[pid][j] -= req[j];
+    }
+
+    printf("Tentatively granted. Available is now: ");
+    for (int j = 0; j < b->r; j++)
+        printf("%d ", b->avail[j]);
+    printf("\n");
+
+    int seq[MAX_P], count;
+    if (checkSafety(b, seq, &count))
+    {
+        printf("Request CAN be granted immediately. New state is safe.\n");
+        printSafeSequence(seq, count);
+    }
+    else
+    {
+        printf("Request CANNOT be granted: resulting state is unsafe. P%d must wait.\n", pid);
+        for (int j = 0; j < b->r; j++)
+        {
+            b->avail[j] += req[j];
+            b->alloc[pid][j] -= req[j];
+            b->need[pid][j] += req[j];
+        }
+
+        printf("Rolled back. Available is now: ");
+        for (int j = 0; j < b->r; j++)
+            printf("%d ", b->avail[j]);
+        printf("\n");
+    }
+}
+
+void inputRequest(struct Bankers *b, int *pid, int req[])
+{
+    printf("\nEnter process number requesting resources (e.g. 2 for P2): ");
+    scanf("%d", pid);
+    printf("Enter requested amount for each of %d resource types: ", b->r);
+    for (int j = 0; j < b->r; j++)
+        scanf("%d", &req[j]);
+}
+
+int main()
+{
     struct Bankers b;
-    int safeSeq[MAX_P], count;
+    int pid, req[MAX_R];
+    char choice;
 
     inputData(&b);
     calculateNeed(&b);
+    showInitialSafety(&b);
 
-    if (checkSafety(&b, safeSeq, &count)) {
-        printf("\nSystem is in SAFE state.\n");
-        printSafeSequence(safeSeq, count);
-    } else {
-        printf("\nSystem is in UNSAFE state (deadlock possible).\n");
-    }
+    do
+    {
+        inputRequest(&b, &pid, req);
+        requestResources(&b, pid, req);
+
+        printf("\nDo you want to make another request? (y/n): ");
+        scanf(" %c", &choice);
+    } while (choice == 'y' || choice == 'Y');
 
     return 0;
 }
