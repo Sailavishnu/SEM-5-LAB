@@ -257,3 +257,8 @@ These three cases together demonstrate the complete decision logic of the Banker
 3. **If we give it, does the system stay safe?** (run the full safety algorithm on the resulting state)
 
 Only when all three pass does a request get granted for good.
+
+
+```
+
+
