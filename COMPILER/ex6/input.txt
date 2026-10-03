@@ -1,0 +1,15 @@
+sum = 0
+    i = 1
+L1: if i > n goto L4
+    t1 = i % 2
+    if t1 == 0 goto L2
+    goto L3
+L2: t2 = i * i
+    sum = sum + t2
+L3: i = i + 1
+    goto L1
+L4: t3 = sum / 2
+    if t3 >= 10 goto L5
+    t4 = t3 - 1
+    result = t4
+L5:
