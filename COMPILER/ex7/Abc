@@ -1,0 +1,206 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <math.h>
+
+#define MAX 100
+#define LEN 50
+
+typedef struct {
+    char lhs[LEN], a[LEN], b[LEN];
+    char op;
+} Stmt;
+
+Stmt s[MAX];
+int n;
+
+char con[MAX][LEN], val[MAX][LEN];
+char cp[MAX][LEN], cpv[MAX][LEN];
+int nc, np;
+
+/* Check whether string is a number */
+int num(char *x)
+{
+    char *p;
+    strtod(x, &p);
+    return *x && !*p;
+}
+
+/* Check whether string is a variable */
+int var(char *x)
+{
+    if (!isalpha(x[0]) && x[0] != '_') return 0;
+    for (int i = 1; x[i]; i++)
+        if (!isalnum(x[i]) && x[i] != '_') return 0;
+    return 1;
+}
+
+/* Search table */
+int find(char a[][LEN], int n, char *x)
+{
+    for (int i = 0; i < n; i++)
+        if (!strcmp(a[i], x)) return i;
+    return -1;
+}
+
+/* Replace constants and copies */
+int replace(char *x, int line)
+{
+    int i;
+
+    if (!var(x)) return 0;
+
+    i = find(con, nc, x);
+    if (i >= 0) {
+        printf("  Line %d: constant propagation, %s replaced by %s\n",
+               line, x, val[i]);
+        strcpy(x, val[i]);
+        return 1;
+    }
+
+    i = find(cp, np, x);
+    if (i >= 0) {
+        printf("  Line %d: copy propagation, %s replaced by %s\n",
+               line, x, cpv[i]);
+        strcpy(x, cpv[i]);
+        return 1;
+    }
+
+    return 0;
+}
+
+/* Calculate expression */
+int calculate(char op, double a, double b, double *r)
+{
+    switch (op) {
+        case '+': *r = a + b; break;
+        case '-': *r = a - b; break;
+        case '*': *r = a * b; break;
+        case '/': if (!b) return 0; *r = a / b; break;
+        case '%': if (!b) return 0; *r = fmod(a,b); break;
+        case '^': *r = pow(a,b); break;
+        default: return 0;
+    }
+    return 1;
+}
+
+void print()
+{
+    for (int i = 0; i < n; i++)
+        if (s[i].op)
+            printf("%3d.  %s = %s %c %s\n",
+                   i+1,s[i].lhs,s[i].a,s[i].op,s[i].b);
+        else
+            printf("%3d.  %s = %s\n",i+1,s[i].lhs,s[i].a);
+}
+
+/* One optimization pass */
+int optimize()
+{
+    int changed = 0;
+    nc = np = 0;
+
+    for (int i = 0; i < n; i++) {
+        Stmt *x = &s[i];
+        int line = i + 1;
+
+        changed |= replace(x->a,line);
+        if (x->op)
+            changed |= replace(x->b,line);
+
+        /* Constant folding */
+        if (x->op && num(x->a) && num(x->b)) {
+            double r;
+            if (calculate(x->op,atof(x->a),atof(x->b),&r)) {
+                printf("  Line %d: constant folding, %s %c %s = %.10g\n",
+                       line,x->a,x->op,x->b,r);
+
+                sprintf(x->a,"%.10g",r);
+                x->op = 0;
+                changed = 1;
+            }
+        }
+
+        /* Common subexpression elimination */
+        if (x->op) {
+            for (int j=0;j<i;j++) {
+                if (s[j].op == x->op &&
+                   ((!strcmp(s[j].a,x->a) && !strcmp(s[j].b,x->b)) ||
+                    ((x->op=='+' || x->op=='*') &&
+                     !strcmp(s[j].a,x->b) &&
+                     !strcmp(s[j].b,x->a)))) {
+
+                    printf("  Line %d: common subexpression, "
+                           "%s = %s %c %s becomes %s = %s\n",
+                           line,x->lhs,x->a,x->op,x->b,
+                           x->lhs,s[j].lhs);
+
+                    strcpy(x->a,s[j].lhs);
+                    x->op = 0;
+                    changed = 1;
+                    break;
+                }
+            }
+        }
+
+        /* Save constants / copies */
+        if (!x->op && num(x->a)) {
+            strcpy(con[nc],x->lhs);
+            strcpy(val[nc++],x->a);
+        }
+        else if (!x->op && var(x->a)) {
+            strcpy(cp[np],x->lhs);
+            strcpy(cpv[np++],x->a);
+        }
+    }
+
+    return changed;
+}
+
+int main(int argc,char *argv[])
+{
+    FILE *fp;
+    char line[200];
+
+    fp = fopen(argc > 1 ? argv[1] : "input.txt","r");
+
+    if (!fp) {
+        printf("Cannot open input.txt\n");
+        return 1;
+    }
+
+    /* Read TAC */
+    while (fgets(line,sizeof(line),fp)) {
+        Stmt *x = &s[n];
+
+        if (sscanf(line," %[^= ] = %s %c %s",
+                   x->lhs,x->a,&x->op,x->b) == 4) {
+            n++;
+        }
+        else if (sscanf(line," %[^= ] = %s",
+                        x->lhs,x->a) == 2) {
+            x->op = 0;
+            n++;
+        }
+    }
+
+    fclose(fp);
+
+    printf("Original TAC:\n");
+    print();
+
+    for (int i=1;i<=50;i++) {
+        printf("\nPass %d\n",i);
+
+        if (!optimize()) {
+            printf("  no further change, stopping\n");
+            break;
+        }
+    }
+
+    printf("\nOptimized TAC:\n");
+    print();
+
+    return 0;
+}
