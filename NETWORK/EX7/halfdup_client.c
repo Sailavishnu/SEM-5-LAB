@@ -14,21 +14,18 @@ int main() {
     socklen_t addr_len = sizeof(server_addr);
     char message[SIZE], reply[SIZE];
 
-    // Create UDP socket
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {
         perror("socket");
         return 1;
     }
 
-    // Server address
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     while (1) {
-        // Send message
         printf("Client: ");
         fgets(message, SIZE, stdin);
         message[strcspn(message, "\n")] = '\0';
@@ -39,7 +36,6 @@ int main() {
         if (strcmp(message, "exit") == 0)
             break;
 
-        // Receive reply
         n = recvfrom(sockfd, reply, SIZE - 1, 0, NULL, NULL);
         if (n < 0) {
             perror("recvfrom");
