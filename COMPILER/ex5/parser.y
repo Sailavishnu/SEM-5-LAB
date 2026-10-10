@@ -7,13 +7,12 @@
 int  yylex(void);
 void yyerror(const char *msg);
 
-/* Needed to feed a string (one typed line) to the lexer */
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
 extern YY_BUFFER_STATE yy_scan_string(const char *str);
 extern void yy_delete_buffer(YY_BUFFER_STATE buf);
 
-int math_error = 0;     /* set to 1 on divide by zero etc. */
-int syntax_error = 0;   /* set to 1 on a syntax error      */
+int math_error = 0;    
+int syntax_error = 0;  
 %}
 
 %union {
@@ -23,10 +22,6 @@ int syntax_error = 0;   /* set to 1 on a syntax error      */
 %token <val> NUMBER
 %type  <val> expr
 
-/* Lowest precedence first, highest last.
-   '+' '-' '*' '/' are left associative: 8-3-2 = (8-3)-2
-   '^' is right associative:             2^3^2 = 2^(3^2)
-   Unary minus sits below '^', so -2^2 = -(2^2) */
 %left  '+' '-'
 %left  '*' '/'
 %right UMINUS
@@ -92,7 +87,6 @@ int main(void)
         if (fgets(line, sizeof line, stdin) == NULL)
             break;
 
-        /* make sure the line ends with a newline so the grammar can finish */
         if (strchr(line, '\n') == NULL)
             strcat(line, "\n");
 

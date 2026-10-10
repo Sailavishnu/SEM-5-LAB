@@ -114,3 +114,91 @@ int main() {
     close(sockfd);
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// #include <stdio.h>
+// #include <string.h>
+// #include <stdlib.h>
+// #include <ctype.h>
+// #include <unistd.h>
+// #include <arpa/inet.h>
+// #include <sys/socket.h>
+
+// int main() {
+//     int sockfd, n, choice;
+//     struct sockaddr_in server, client;
+//     socklen_t len = sizeof(client);
+//     char req[200], s1[100], s2[100], res[200];
+
+//     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+//     server.sin_family = AF_INET;
+//     server.sin_addr.s_addr = INADDR_ANY;
+//     server.sin_port = htons(8082);
+
+//     bind(sockfd, (struct sockaddr *)&server, sizeof(server));
+
+//     while (1) {
+//         n = recvfrom(sockfd, req, 199, 0,
+//                      (struct sockaddr *)&client, &len);
+//         req[n] = '\0';
+
+//         sscanf(req, "%d|%99[^|]|%99[^\n]",
+//                &choice, s1, s2);
+
+//         if (choice == 1)
+//             sprintf(res, "%s%s", s1, s2);
+//         else if (choice == 2) {
+//             int i, l = strlen(s1);
+//             for (i = 0; i < l; i++)
+//                 res[i] = s1[l - 1 - i];
+//             res[l] = '\0';
+//         }
+//         else if (choice == 3) {
+//             int i;
+//             for (i = 0; s1[i]; i++)
+//                 res[i] = tolower(s1[i]);
+//             res[i] = '\0';
+//         }
+//         else if (choice == 4) {
+//             int i;
+//             for (i = 0; s1[i]; i++)
+//                 res[i] = toupper(s1[i]);
+//             res[i] = '\0';
+//         }
+//         else
+//             strcpy(res, "Invalid choice");
+
+//         sendto(sockfd, res, strlen(res), 0,
+//                (struct sockaddr *)&client, len);
+//     }
+
+//     close(sockfd);
+//     return 0;
+// }

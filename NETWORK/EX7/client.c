@@ -85,3 +85,70 @@ int main(int argc, char *argv[]) {
     close(sockfd);
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// #include <stdio.h>
+// #include <string.h>
+// #include <unistd.h>
+// #include <arpa/inet.h>
+// #include <sys/socket.h>
+
+// int main() {
+//     int sockfd, choice;
+//     struct sockaddr_in server;
+//     char s1[100], s2[100], req[200], res[200];
+
+//     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+//     server.sin_family = AF_INET;
+//     server.sin_port = htons(8082);
+//     server.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+//     printf("1.Concat 2.Reverse 3.Lower 4.Upper\n");
+//     scanf("%d", &choice);
+//     getchar();
+
+//     printf("Enter string: ");
+//     fgets(s1, 100, stdin);
+//     s1[strcspn(s1, "\n")] = '\0';
+
+//     s2[0] = '\0';
+//     if (choice == 1) {
+//         printf("Enter second string: ");
+//         fgets(s2, 100, stdin);
+//         s2[strcspn(s2, "\n")] = '\0';
+//     }
+
+//     sprintf(req, "%d|%s|%s", choice, s1, s2);
+
+//     sendto(sockfd, req, strlen(req), 0,
+//            (struct sockaddr *)&server, sizeof(server));
+
+//     int len = recvfrom(sockfd, res, 199, 0, NULL, NULL);
+//     res[len] = '\0';
+
+//     printf("Result: %s\n", res);
+//     close(sockfd);
+//     return 0;
+// }
