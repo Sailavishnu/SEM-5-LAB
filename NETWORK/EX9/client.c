@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -7,14 +6,35 @@
 
 #define PORT 2121
 
+int read_line(int s, char *b, int size)
+{
+    int i = 0;
+    char ch;
+
+    while (i < size - 1)
+    {
+        int n = recv(s, &ch, 1, 0);
+        if (n <= 0) return n;
+        if (ch == '\n') break;
+        b[i++] = ch;
+    }
+
+    b[i] = '\0';
+    return i;
+}
+
 int main(void)
 {
-    int s, ch, n;
-    char b[512], name[100], dest[100];
+    int s, n;
+    char b[512], cmd[20];
     struct sockaddr_in addr = {0};
 
     s = socket(AF_INET, SOCK_STREAM, 0);
-    if (s < 0) { perror("socket"); return 1; }
+    if (s < 0)
+    {
+        perror("socket");
+        return 1;
+    }
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(PORT);
@@ -27,91 +47,62 @@ int main(void)
         return 1;
     }
 
-    n = recv(s, b, sizeof(b)-1, 0);
-    if (n <= 0) { close(s); return 1; }
-    b[n] = '\0';
-    printf("%s", b);
-
-    /* LOGIN */
-    while (1)
+    n = read_line(s, b, sizeof(b));
+    if (n <= 0)
     {
-        printf("Username: ");
-        scanf("%99s", name);
-
-        snprintf(b, sizeof(b), "USER %s\n", name);
-        send(s, b, strlen(b), 0);
-
-        n = recv(s, b, sizeof(b)-1, 0);
-        if (n <= 0) { close(s); return 1; }
-        b[n] = '\0';
-        printf("%s", b);
-
-        if (strncmp(b, "331", 3) != 0)
-        {
-            printf("Try username again.\n");
-            continue;
-        }
-
-        printf("Password: ");
-        scanf("%99s", name);
-
-        snprintf(b, sizeof(b), "PASS %s\n", name);
-        send(s, b, strlen(b), 0);
-
-        n = recv(s, b, sizeof(b)-1, 0);
-        if (n <= 0) { close(s); return 1; }
-        b[n] = '\0';
-        printf("%s", b);
-
-        if (strncmp(b, "230", 3) == 0)
-            break;
-
-        printf("Login failed. Start again.\n");
+        close(s);
+        return 1;
     }
 
-    /* MENU */
+    printf("%s\n\n", b);
+
     while (1)
     {
-        printf("\n1.CREATE  2.DELETE  3.PWD  4.DIR");
-        printf("  5.CP  6.MV  7.EXIT\nChoice: ");
+        printf("ftp> ");
+        fflush(stdout);
 
-        if (scanf("%d", &ch) != 1) break;
+        if (!fgets(b, sizeof(b), stdin))
+            break;
 
-        if (ch == 1 || ch == 2 || ch == 5 || ch == 6)
+        if (!strchr(b, '\n'))
         {
-            printf("Filename: ");
-            scanf("%99s", name);
-
-            if (ch == 1)
-                snprintf(b, sizeof(b), "CREATE %s\n", name);
-            else if (ch == 2)
-                snprintf(b, sizeof(b), "DELETE %s\n", name);
-            else
-            {
-                printf("Destination: ");
-                scanf("%99s", dest);
-
-                snprintf(b, sizeof(b), "%s %s %s\n",
-                         ch == 5 ? "CP" : "MV", name, dest);
-            }
-        }
-        else if (ch == 3)
-            strcpy(b, "PWD\n");
-        else if (ch == 4)
-            strcpy(b, "DIR\n");
-        else if (ch == 7)
-            strcpy(b, "QUIT\n");
-        else
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF)
+                ;
+            printf("Command too long\n");
             continue;
+        }
 
-        send(s, b, strlen(b), 0);
+        sscanf(b, "%19s", cmd);
 
-        n = recv(s, b, sizeof(b)-1, 0);
-        if (n <= 0) break;
-        b[n] = '\0';
-        printf("%s", b);
+        if (send(s, b, strlen(b), 0) <= 0)
+            break;
 
-        if (ch == 7) break;
+        n = read_line(s, b, sizeof(b));
+        if (n <= 0)
+            break;
+
+        printf("%s\n", b);
+
+        if (!strcmp(cmd, "DIR") && !strncmp(b, "200 ", 4))
+        {
+            int count = 0;
+
+            while ((n = read_line(s, b, sizeof(b))) > 0)
+            {
+                if (!strcmp(b, "END"))
+                    break;
+
+                printf("  %s\n", b);
+                count++;
+            }
+
+            if (count == 0)
+                printf("  (empty)\n");
+        }
+
+        if (!strncmp(b, "221 ", 4))
+            break;
     }
 
     close(s);

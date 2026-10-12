@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -14,8 +13,8 @@ int main() {
     socklen_t len = sizeof(client);
     char domain[SIZE], ip[SIZE];
 
-    char *names[] = {"google.com", "yahoo.com", "example.com"};
-    char *ips[] = {"142.250.0.1", "98.137.11.163", "93.184.216.34"};
+    char *names[] = {"google.com", "yahoo.com", "example.com", "github.com", "facebook.com", "twitter.com"};
+    char *ips[] = {"142.250.0.1", "98.137.11.163", "93.184.216.34", "140.82.121.4", "157.240.0.35", "104.244.42.1"};
 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -39,7 +38,7 @@ int main() {
 
         strcpy(ip, "Domain not found");
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 6; i++) {
             if (strcmp(domain, names[i]) == 0) {
                 strcpy(ip, ips[i]);
                 break;

@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -20,22 +19,28 @@ int main() {
     server.sin_port = htons(PORT);
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    printf("Enter domain name: ");
-    fgets(domain, SIZE, stdin);
-    domain[strcspn(domain, "\n")] = '\0';
+    do {
+        printf("Enter domain name (or -1 to exit): ");
+        fgets(domain, SIZE, stdin);
+        domain[strcspn(domain, "\n")] = '\0';
 
-    sendto(sockfd, domain, strlen(domain), 0,
-           (struct sockaddr *)&server, sizeof(server));
+        if (strcmp(domain, "-1") == 0) {
+            break;
+        }
 
-    n = recvfrom(sockfd, ip, SIZE - 1, 0, NULL, NULL);
-    if (n < 0) {
-        perror("recvfrom");
-        close(sockfd);
-        return 1;
-    }
+        sendto(sockfd, domain, strlen(domain), 0,
+               (struct sockaddr *)&server, sizeof(server));
 
-    ip[n] = '\0';
-    printf("IP Address: %s\n", ip);
+        n = recvfrom(sockfd, ip, SIZE - 1, 0, NULL, NULL);
+        if (n < 0) {
+            perror("recvfrom");
+            close(sockfd);
+            return 1;
+        }
+
+        ip[n] = '\0';
+        printf("IP Address: %s\n", ip);
+    } while (1);
 
     close(sockfd);
     return 0;

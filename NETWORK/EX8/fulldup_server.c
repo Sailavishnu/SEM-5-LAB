@@ -1,109 +1,94 @@
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <signal.h>
-#include <stdlib.h>
 
 #define PORT 8082
 #define SIZE 1024
 
-int main()
-{
-    int sockfd, n;
-    pid_t pid;
-    struct sockaddr_in server, client;
-    socklen_t len = sizeof(client);
-    char message[SIZE];
+int main() {
+    int sockfd;
+    struct sockaddr_in server_addr, client_addr;
+    char buffer[SIZE];
+    socklen_t addr_len = sizeof(client_addr);
 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0)
-    {
-        perror("socket");
-        return 1;
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
     }
 
-    memset(&server, 0, sizeof(server));
-    server.sin_family = AF_INET;
-    server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons(PORT);
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(PORT);
 
-    if (bind(sockfd, (struct sockaddr *)&server,
-             sizeof(server)) < 0)
-    {
-        perror("bind");
+    if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Bind failed");
         close(sockfd);
-        return 1;
+        exit(EXIT_FAILURE);
     }
 
-    printf("UDP Server waiting...\n");
+    printf("UDP Server waiting on port %d...\n", PORT);
 
-    n = recvfrom(sockfd, message, SIZE - 1, 0,
-                 (struct sockaddr *)&client, &len);
-
-    if (n < 0)
-    {
+    memset(buffer, 0, SIZE);
+    int n = recvfrom(sockfd, buffer, SIZE - 1, 0,
+                     (struct sockaddr *)&client_addr, &addr_len);
+    if (n < 0) {
         perror("recvfrom");
         close(sockfd);
-        return 1;
+        exit(EXIT_FAILURE);
     }
-
+    buffer[n] = '\0';
     printf("Client connected\n");
 
-    pid = fork();
-
-    if (pid == 0)
-    {
-        while (1)
-        {
-            n = recvfrom(sockfd, message, SIZE - 1, 0, NULL, NULL);
-            if (n < 0)
-                continue;
-
-            message[n] = '\0';
-            printf("\nClient: %s\n", message);
-            fflush(stdout);
-
-            if (strcmp(message, "exit") == 0)
-            {
-                sendto(sockfd, "exit", 4, 0,
-                       (struct sockaddr *)&client, len);
-                kill(getppid(), SIGTERM);
-                close(sockfd);
-                exit(0);
-            }
-        }
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("Fork failed");
+        close(sockfd);
+        exit(EXIT_FAILURE);
     }
-    else if (pid > 0)
-    {
-        while (1)
-        {
-            printf("\r\033[KClient: %s\n", message);
+
+    if (pid == 0) {
+        while (1) {
+            memset(buffer, 0, SIZE);
+            int n = recvfrom(sockfd, buffer, SIZE - 1, 0,
+                             (struct sockaddr *)&client_addr, &addr_len);
+            if (n < 0) {
+                perror("recvfrom");
+                continue;
+            }
+            buffer[n] = '\0';
+
+            if (strcmp(buffer, "exit") == 0) {
+                printf("\nClient left the chat.\n");
+                break;
+            }
+
+            printf("\nClient: %s\n", buffer);
+            fflush(stdout);
+        }
+    } else {
+        while (1) {
+            memset(buffer, 0, SIZE);
             printf("Server: ");
             fflush(stdout);
 
-            if (fgets(message, SIZE, stdin) == NULL)
-                strcpy(message, "exit");
-
-            message[strcspn(message, "\n")] = '\0';
-
-            sendto(sockfd, message, strlen(message), 0,
-                   (struct sockaddr *)&client, len);
-
-            if (strcmp(message, "exit") == 0)
+            if (fgets(buffer, SIZE, stdin) == NULL)
                 break;
-        }
 
-        kill(pid, SIGTERM);
-    }
-    else
-    {
-        perror("fork");
-        close(sockfd);
-        return 1;
+            buffer[strcspn(buffer, "\n")] = '\0';
+
+            sendto(sockfd, buffer, strlen(buffer), 0,
+                   (struct sockaddr *)&client_addr, addr_len);
+
+            if (strcmp(buffer, "exit") == 0) {
+                printf("You left the chat.\n");
+                break;
+            }
+        }
     }
 
     close(sockfd);
