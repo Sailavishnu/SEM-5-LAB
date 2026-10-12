@@ -4,80 +4,110 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 
 #define PORT 8082
 #define SIZE 1024
 
-int main() {
-    int sockfd;
-    struct sockaddr_in server_addr;
-    char buffer[SIZE];
-    socklen_t addr_len = sizeof(server_addr);
+int main(void)
+{
+    int s, n, running = 1;
+    char b[SIZE];
+    struct sockaddr_in addr = {0};
+    socklen_t len = sizeof(addr);
+    fd_set readfds;
 
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
-        perror("Socket creation failed");
-        exit(EXIT_FAILURE);
+    s = socket(AF_INET, SOCK_DGRAM, 0);
+    if (s < 0) {
+        perror("socket");
+        return 1;
     }
 
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(PORT);
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(PORT);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    printf("UDP Client started. Type messages below.\n");
-    printf("Type 'exit' to quit.\n\n");
-
-    strcpy(buffer, "connected");
-    sendto(sockfd, buffer, strlen(buffer), 0,
-           (struct sockaddr *)&server_addr, addr_len);
-
-    pid_t pid = fork();
-    if (pid < 0) {
-        perror("Fork failed");
-        close(sockfd);
-        exit(EXIT_FAILURE);
+    if (sendto(s, "HELLO", 5, 0,
+               (struct sockaddr *)&addr, len) < 0) {
+        perror("sendto");
+        close(s);
+        return 1;
     }
 
-    if (pid == 0) {
-        while (1) {
-            memset(buffer, 0, SIZE);
-            int n = recvfrom(sockfd, buffer, SIZE - 1, 0, NULL, NULL);
-            if (n < 0) {
-                perror("recvfrom");
+    n = recvfrom(s, b, SIZE - 1, 0, NULL, NULL);
+    if (n <= 0) {
+        printf("Server did not respond.\n");
+        close(s);
+        return 1;
+    }
+
+    b[n] = '\0';
+
+    if (strcmp(b, "CONNECTED") != 0) {
+        printf("Unexpected server response: %s\n", b);
+        close(s);
+        return 1;
+    }
+
+    printf("UDP Client connected. Type EXIT to quit.\n\n");
+    printf("Client> ");
+    fflush(stdout);
+
+    while (running) {
+        FD_ZERO(&readfds);
+        FD_SET(STDIN_FILENO, &readfds);
+        FD_SET(s, &readfds);
+
+        if (select(s + 1, &readfds, NULL, NULL, NULL) < 0) {
+            perror("select");
+            break;
+        }
+
+        if (FD_ISSET(s, &readfds)) {
+            n = recvfrom(s, b, SIZE - 1, 0, NULL, NULL);
+            if (n <= 0)
+                continue;
+
+            b[n] = '\0';
+            printf("\r\033[K");
+
+            if (!strcmp(b, "EXIT")) {
+                printf("Server left the chat.\n");
+                running = 0;
+            } else {
+                printf("Server: %s\nClient> ", b);
+                fflush(stdout);
+            }
+        }
+
+        if (running && FD_ISSET(STDIN_FILENO, &readfds)) {
+            if (!fgets(b, sizeof(b), stdin))
+                strcpy(b, "EXIT");
+            else
+                b[strcspn(b, "\n")] = '\0';
+
+            if (b[0] == '\0') {
+                printf("Client> ");
+                fflush(stdout);
                 continue;
             }
-            buffer[n] = '\0';
 
-            if (strcmp(buffer, "exit") == 0) {
-                printf("\nServer left the chat.\n");
+            if (sendto(s, b, strlen(b), 0,
+                       (struct sockaddr *)&addr, len) < 0) {
+                perror("sendto");
                 break;
             }
 
-            printf("\nServer: %s\n", buffer);
-            fflush(stdout);
-        }
-    } else {
-        while (1) {
-            memset(buffer, 0, SIZE);
-            printf("Client: ");
-            fflush(stdout);
-
-            if (fgets(buffer, SIZE, stdin) == NULL)
-                break;
-
-            buffer[strcspn(buffer, "\n")] = '\0';
-
-            sendto(sockfd, buffer, strlen(buffer), 0,
-                   (struct sockaddr *)&server_addr, addr_len);
-
-            if (strcmp(buffer, "exit") == 0) {
+            if (!strcmp(b, "EXIT")) {
                 printf("You left the chat.\n");
-                break;
+                running = 0;
+            } else {
+                printf("Client> ");
+                fflush(stdout);
             }
         }
     }
 
-    close(sockfd);
+    close(s);
     return 0;
 }
