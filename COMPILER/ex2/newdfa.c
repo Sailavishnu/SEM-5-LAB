@@ -137,11 +137,3 @@ int main() {
 
     return 0;
 }
-
-
-
-
-/*
-1. Test string 2. Exit: 1Input string: babbcdabRecognized token : <bab, C>Unrecognized token : bUnrecognized token : cUnrecognized token : dUnrecognized token : aUnrecognized token : b  
-...it check for longest match . bab result infinal state stil check for other , dont display recof, babb result in unrec . cz c is unrecog, and d unrecog , ab recognized this is that i want
-*/
