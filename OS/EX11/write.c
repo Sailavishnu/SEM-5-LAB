@@ -1,88 +1,121 @@
-/* Simplified Disk Scheduling: FCFS, SSTF, SCAN, CSCAN, LOOK, CLOOK */
+
 #include <stdio.h>
 #include <stdlib.h>
-
 #define MAX 100
 
-void display(int a[], int n, int head) {
+void display(int a[], int n, int h) {
     int i, total = 0;
-    printf("Head movement: %d", head);
+    printf("%d", h);
     for (i = 0; i < n; i++) {
-        total += abs(head - a[i]);
-        head = a[i];
-        printf(" -> %d", head);
+        total += abs(h - a[i]);
+        h = a[i];
+        printf(" -> %d", h);
     }
-    printf("\nTotal head movement = %d\n", total);
+    printf("\nTotal movement = %d\n", total);
 }
 
 void sort(int a[], int n) {
     int i, j, t;
     for (i = 0; i < n; i++)
-        for (j = i + 1; j < n; j++)
+        for (j = i+1; j < n; j++)
             if (a[i] > a[j]) {
                 t = a[i]; a[i] = a[j]; a[j] = t;
             }
 }
 
+void FCFS(int a[], int n, int h) {
+    printf("FCFS: ");
+    display(a, n, h);
+}
+
+void SSTF(int a[], int n, int h) {
+    int b[MAX], used[MAX] = {0}, i, j, p, min, start = h;
+    for (i = 0; i < n; i++) {
+        p = -1; min = 999999;
+        for (j = 0; j < n; j++)
+            if (!used[j] && abs(h-a[j]) < min)
+                min = abs(h-a[j]), p = j;
+        b[i] = a[p]; used[p] = 1; h = a[p];
+    }
+    printf("SSTF: ");
+    display(b, n, start);
+}
+
+void SCAN(int a[], int n, int h, int size, int d) {
+    int b[MAX], i, k = 0;
+    sort(a, n);
+    if (d) {
+        for (i=0;i<n;i++) if(a[i]>=h)b[k++]=a[i];
+        b[k++]=size-1;
+        for(i=n-1;i>=0;i--)if(a[i]<h)b[k++]=a[i];
+    } else {
+        for(i=n-1;i>=0;i--)if(a[i]<=h)b[k++]=a[i];
+        b[k++]=0;
+        for(i=0;i<n;i++)if(a[i]>h)b[k++]=a[i];
+    }
+    printf("SCAN: ");
+    display(b, k, h);
+}
+
+void CSCAN(int a[], int n, int h, int size, int d) {
+    int b[MAX], i, k=0;
+    sort(a,n);
+    if(d) {
+        for(i=0;i<n;i++)if(a[i]>=h)b[k++]=a[i];
+        b[k++]=size-1; b[k++]=0;
+        for(i=0;i<n;i++)if(a[i]<h)b[k++]=a[i];
+    } else {
+        for(i=n-1;i>=0;i--)if(a[i]<=h)b[k++]=a[i];
+        b[k++]=0; b[k++]=size-1;
+        for(i=n-1;i>=0;i--)if(a[i]>h)b[k++]=a[i];
+    }
+    printf("CSCAN: ");
+    display(b,k,h);
+}
+
+void LOOK(int a[], int n, int h, int d) {
+    int b[MAX],i,k=0;
+    sort(a,n);
+    if(d) {
+        for(i=0;i<n;i++)if(a[i]>=h)b[k++]=a[i];
+        for(i=n-1;i>=0;i--)if(a[i]<h)b[k++]=a[i];
+    } else {
+        for(i=n-1;i>=0;i--)if(a[i]<=h)b[k++]=a[i];
+        for(i=0;i<n;i++)if(a[i]>h)b[k++]=a[i];
+    }
+    printf("LOOK: ");
+    display(b,k,h);
+}
+
+void CLOOK(int a[], int n, int h, int d) {
+    int b[MAX],i,k=0;
+    sort(a,n);
+    if(d) {
+        for(i=0;i<n;i++)if(a[i]>=h)b[k++]=a[i];
+        for(i=0;i<n;i++)if(a[i]<h)b[k++]=a[i];
+    } else {
+        for(i=n-1;i>=0;i--)if(a[i]<=h)b[k++]=a[i];
+        for(i=n-1;i>=0;i--)if(a[i]>h)b[k++]=a[i];
+    }
+    printf("CLOOK: ");
+    display(b,k,h);
+}
+
 int main() {
-    int req[MAX], n, head, i, choice;
+    int a[MAX], n, h, prev, size, i, d;
+    printf("Number of requests: ");
+    scanf("%d",&n);
+    printf("Request queue: ");
+    for(i=0;i<n;i++) scanf("%d",&a[i]);
+    printf("Head, previous head, disk size: ");
+    scanf("%d%d%d",&h,&prev,&size);
+    d = h >= prev;
 
-    printf("Enter number of requests: ");
-    scanf("%d", &n);
-    printf("Enter request queue: ");
-    for (i = 0; i < n; i++) scanf("%d", &req[i]);
-    printf("Enter initial head position: ");
-    scanf("%d", &head);
-
-    do {
-        printf("\n1.FCFS  2.SSTF  3.SCAN  4.CSCAN  5.LOOK  6.CLOOK  7.Exit\n");
-        printf("Enter choice: ");
-        scanf("%d", &choice);
-
-        if (choice == 1) {
-            printf("FCFS\n");
-            display(req, n, head);
-        } else if (choice == 2) {
-            int done[MAX] = {0}, seq[MAX], count = 0, j, min, pos;
-            int h = head;
-            for (i = 0; i < n; i++) {
-                min = 99999; pos = -1;
-                for (j = 0; j < n; j++)
-                    if (!done[j] && abs(h - req[j]) < min) {
-                        min = abs(h - req[j]); pos = j;
-                    }
-                done[pos] = 1;
-                seq[count++] = req[pos];
-                h = req[pos];
-            }
-            printf("SSTF\n");
-            display(seq, count, head);
-        } else if (choice >= 3 && choice <= 6) {
-            int a[MAX], seq[MAX], count = 0;
-            for (i = 0; i < n; i++) a[i] = req[i];
-            sort(a, n);
-
-            /* Simple right-moving versions of SCAN, CSCAN, LOOK and CLOOK */
-            for (i = 0; i < n; i++)
-                if (a[i] >= head) seq[count++] = a[i];
-
-            if (choice == 3 || choice == 4) seq[count++] = 199;
-            if (choice == 4) seq[count++] = 0;
-
-            for (i = 0; i < n; i++)
-                if (a[i] < head) seq[count++] = a[i];
-
-            if (choice == 3) printf("SCAN\n");
-            if (choice == 4) printf("CSCAN\n");
-            if (choice == 5) printf("LOOK\n");
-            if (choice == 6) printf("CLOOK\n");
-            display(seq, count, head);
-        } else if (choice == 7) {
-            printf("Exiting...\n");
-        } else {
-            printf("Invalid choice\n");
-        }
-    } while (choice != 7);
-
+    FCFS(a,n,h);
+    SSTF(a,n,h);
+    SCAN(a,n,h,size,d);
+    CSCAN(a,n,h,size,d);
+    LOOK(a,n,h,d);
+    CLOOK(a,n,h,d);
     return 0;
 }
