@@ -72,6 +72,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #define MAX_ROWS 500
 #define LEN      32
@@ -159,8 +160,33 @@ static void paste(Chunk *c)
     free(c->q);
     free(c);
 }
+/* if c goto body ; goto end ; body: */
+static void branch(const char *c, const char *body, const char *end)
+{
+    emit("if", c, "-", "-", body);
+    emit("goto", "-", "-", "-", end);
+    emit_label(body);
+}
 
-#line 164 "y.tab.c"
+/* rename temps t1,t2,... in order of appearance in the final table */
+static void renumber(void)
+{
+    char seen[MAX_ROWS * 3][LEN]; int n = 0;
+    for (int i = 0; i < nquads; i++) {
+        char *f[3] = { quads[i].arg1, quads[i].arg2, quads[i].result };
+        for (int k = 0; k < 3; k++) {
+            char *s = f[k];
+            if (s[0] != 't' || !isdigit((unsigned char)s[1]) ||
+                strspn(s + 1, "0123456789") != strlen(s + 1)) continue;
+            int j = 0;
+            while (j < n && strcmp(seen[j], s)) j++;
+            if (j == n) snprintf(seen[n++], LEN, "%s", s);
+            snprintf(s, LEN, "t%d", j + 1);
+        }
+    }
+}
+
+#line 190 "y.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -261,13 +287,13 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 94 "parser.y"
+#line 120 "parser.y"
 
     char  *str;
     int    pos;
     void  *chunk;
 
-#line 271 "y.tab.c"
+#line 297 "y.tab.c"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -731,12 +757,12 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   120,   120,   124,   125,   129,   130,   131,   132,   133,
-     134,   135,   139,   140,   141,   142,   143,   144,   145,   146,
-     150,   151,   157,   159,   164,   166,   156,   175,   177,   174,
-     188,   197,   200,   199,   208,   209,   210,   211,   212,   213,
-     214,   215,   216,   217,   218,   219,   220,   221,   222,   223,
-     224,   225,   226
+       0,   146,   146,   150,   151,   155,   156,   157,   158,   159,
+     160,   161,   165,   166,   167,   168,   169,   170,   171,   172,
+     176,   177,   183,   185,   187,   189,   182,   198,   200,   197,
+     208,   214,   217,   216,   225,   226,   227,   228,   229,   230,
+     231,   232,   233,   234,   235,   236,   237,   238,   239,   240,
+     241,   242,   243
 };
 #endif
 
@@ -1386,258 +1412,249 @@ yyreduce:
   switch (yyn)
     {
   case 12: /* assign: ID '=' expr  */
-#line 139 "parser.y"
+#line 165 "parser.y"
                         { emit("=", (yyvsp[0].str), "-", (yyvsp[-2].str), "-"); }
-#line 1392 "y.tab.c"
+#line 1418 "y.tab.c"
     break;
 
   case 13: /* assign: TYPE ID '=' expr  */
-#line 140 "parser.y"
+#line 166 "parser.y"
                         { emit("=", (yyvsp[0].str), "-", (yyvsp[-2].str), "-"); }
-#line 1398 "y.tab.c"
+#line 1424 "y.tab.c"
     break;
 
   case 14: /* assign: ID PLUSEQ expr  */
-#line 141 "parser.y"
+#line 167 "parser.y"
                         { compound("+", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1404 "y.tab.c"
+#line 1430 "y.tab.c"
     break;
 
   case 15: /* assign: ID MINUSEQ expr  */
-#line 142 "parser.y"
+#line 168 "parser.y"
                         { compound("-", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1410 "y.tab.c"
+#line 1436 "y.tab.c"
     break;
 
   case 16: /* assign: ID MULEQ expr  */
-#line 143 "parser.y"
+#line 169 "parser.y"
                         { compound("*", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1416 "y.tab.c"
+#line 1442 "y.tab.c"
     break;
 
   case 17: /* assign: ID DIVEQ expr  */
-#line 144 "parser.y"
+#line 170 "parser.y"
                         { compound("/", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1422 "y.tab.c"
+#line 1448 "y.tab.c"
     break;
 
   case 18: /* assign: ID INC  */
-#line 145 "parser.y"
+#line 171 "parser.y"
                         { compound("+", (yyvsp[-1].str), "1"); }
-#line 1428 "y.tab.c"
+#line 1454 "y.tab.c"
     break;
 
   case 19: /* assign: ID DEC  */
-#line 146 "parser.y"
+#line 172 "parser.y"
                         { compound("-", (yyvsp[-1].str), "1"); }
-#line 1434 "y.tab.c"
+#line 1460 "y.tab.c"
     break;
 
   case 22: /* @1: %empty  */
-#line 157 "parser.y"
+#line 183 "parser.y"
       { (yyval.str) = newlabel(); emit_label((yyval.str)); }
-#line 1440 "y.tab.c"
+#line 1466 "y.tab.c"
     break;
 
   case 23: /* @2: %empty  */
-#line 159 "parser.y"
-      { char *body = newlabel();
-        (yyval.str) = newlabel();
-        emit("if",   (yyvsp[-1].str), "-", "-", body);
-        emit("goto", "-", "-", "-", (yyval.str));
-        emit_label(body); }
-#line 1450 "y.tab.c"
+#line 185 "parser.y"
+      { char *body = newlabel(); (yyval.str) = newlabel();
+        branch((yyvsp[-1].str), body, (yyval.str)); }
+#line 1473 "y.tab.c"
     break;
 
   case 24: /* @3: %empty  */
-#line 164 "parser.y"
+#line 187 "parser.y"
       { (yyval.pos) = nquads; }
-#line 1456 "y.tab.c"
+#line 1479 "y.tab.c"
     break;
 
   case 25: /* @4: %empty  */
-#line 166 "parser.y"
+#line 189 "parser.y"
       { (yyval.chunk) = cut_from((yyvsp[-2].pos)); }
-#line 1462 "y.tab.c"
+#line 1485 "y.tab.c"
     break;
 
   case 26: /* for_stmt: FOR '(' opt_assign ';' @1 expr ';' @2 @3 opt_assign ')' @4 stmt  */
-#line 168 "parser.y"
+#line 191 "parser.y"
       { paste((Chunk *)(yyvsp[-1].chunk));
         emit("goto", "-", "-", "-", (yyvsp[-8].str));
         emit_label((yyvsp[-5].str)); }
-#line 1470 "y.tab.c"
-    break;
-
-  case 27: /* @5: %empty  */
-#line 175 "parser.y"
-      { (yyval.str) = newlabel(); emit_label((yyval.str)); }
-#line 1476 "y.tab.c"
-    break;
-
-  case 28: /* @6: %empty  */
-#line 177 "parser.y"
-      { char *body = newlabel();
-        (yyval.str) = newlabel();
-        emit("if",   (yyvsp[-1].str), "-", "-", body);
-        emit("goto", "-", "-", "-", (yyval.str));
-        emit_label(body); }
-#line 1486 "y.tab.c"
-    break;
-
-  case 29: /* while_stmt: WHILE '(' @5 expr ')' @6 stmt  */
-#line 183 "parser.y"
-      { emit("goto", "-", "-", "-", (yyvsp[-4].str));
-        emit_label((yyvsp[-1].str)); }
 #line 1493 "y.tab.c"
     break;
 
+  case 27: /* @5: %empty  */
+#line 198 "parser.y"
+      { (yyval.str) = newlabel(); emit_label((yyval.str)); }
+#line 1499 "y.tab.c"
+    break;
+
+  case 28: /* @6: %empty  */
+#line 200 "parser.y"
+      { char *body = newlabel(); (yyval.str) = newlabel();
+        branch((yyvsp[-1].str), body, (yyval.str)); }
+#line 1506 "y.tab.c"
+    break;
+
+  case 29: /* while_stmt: WHILE '(' @5 expr ')' @6 stmt  */
+#line 203 "parser.y"
+      { emit("goto", "-", "-", "-", (yyvsp[-4].str));
+        emit_label((yyvsp[-1].str)); }
+#line 1513 "y.tab.c"
+    break;
+
   case 30: /* if_head: IF '(' expr ')'  */
-#line 189 "parser.y"
-      { char *body = newlabel();
-        (yyval.str) = newlabel();
-        emit("if",   (yyvsp[-1].str), "-", "-", body);
-        emit("goto", "-", "-", "-", (yyval.str));
-        emit_label(body); }
-#line 1503 "y.tab.c"
+#line 209 "parser.y"
+      { char *body = newlabel(); (yyval.str) = newlabel();
+        branch((yyvsp[-1].str), body, (yyval.str)); }
+#line 1520 "y.tab.c"
     break;
 
   case 31: /* if_stmt: if_head stmt  */
-#line 198 "parser.y"
+#line 215 "parser.y"
       { emit_label((yyvsp[-1].str)); }
-#line 1509 "y.tab.c"
+#line 1526 "y.tab.c"
     break;
 
   case 32: /* @7: %empty  */
-#line 200 "parser.y"
+#line 217 "parser.y"
       { (yyval.str) = newlabel();
         emit("goto", "-", "-", "-", (yyval.str));
         emit_label((yyvsp[-2].str)); }
-#line 1517 "y.tab.c"
+#line 1534 "y.tab.c"
     break;
 
   case 33: /* if_stmt: if_head stmt ELSE @7 stmt  */
-#line 204 "parser.y"
+#line 221 "parser.y"
       { emit_label((yyvsp[-1].str)); }
-#line 1523 "y.tab.c"
+#line 1540 "y.tab.c"
     break;
 
   case 34: /* expr: expr '+' expr  */
-#line 208 "parser.y"
+#line 225 "parser.y"
                         { (yyval.str) = binop("+",  (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1529 "y.tab.c"
+#line 1546 "y.tab.c"
     break;
 
   case 35: /* expr: expr '-' expr  */
-#line 209 "parser.y"
+#line 226 "parser.y"
                         { (yyval.str) = binop("-",  (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1535 "y.tab.c"
+#line 1552 "y.tab.c"
     break;
 
   case 36: /* expr: expr '*' expr  */
-#line 210 "parser.y"
+#line 227 "parser.y"
                         { (yyval.str) = binop("*",  (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1541 "y.tab.c"
+#line 1558 "y.tab.c"
     break;
 
   case 37: /* expr: expr '/' expr  */
-#line 211 "parser.y"
+#line 228 "parser.y"
                         { (yyval.str) = binop("/",  (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1547 "y.tab.c"
+#line 1564 "y.tab.c"
     break;
 
   case 38: /* expr: expr '%' expr  */
-#line 212 "parser.y"
+#line 229 "parser.y"
                         { (yyval.str) = binop("%",  (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1553 "y.tab.c"
+#line 1570 "y.tab.c"
     break;
 
   case 39: /* expr: expr '<' expr  */
-#line 213 "parser.y"
+#line 230 "parser.y"
                         { (yyval.str) = binop("<",  (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1559 "y.tab.c"
+#line 1576 "y.tab.c"
     break;
 
   case 40: /* expr: expr '>' expr  */
-#line 214 "parser.y"
+#line 231 "parser.y"
                         { (yyval.str) = binop(">",  (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1565 "y.tab.c"
+#line 1582 "y.tab.c"
     break;
 
   case 41: /* expr: expr LE expr  */
-#line 215 "parser.y"
+#line 232 "parser.y"
                         { (yyval.str) = binop("<=", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1571 "y.tab.c"
+#line 1588 "y.tab.c"
     break;
 
   case 42: /* expr: expr GE expr  */
-#line 216 "parser.y"
+#line 233 "parser.y"
                         { (yyval.str) = binop(">=", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1577 "y.tab.c"
+#line 1594 "y.tab.c"
     break;
 
   case 43: /* expr: expr EQ expr  */
-#line 217 "parser.y"
+#line 234 "parser.y"
                         { (yyval.str) = binop("==", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1583 "y.tab.c"
+#line 1600 "y.tab.c"
     break;
 
   case 44: /* expr: expr NE expr  */
-#line 218 "parser.y"
+#line 235 "parser.y"
                         { (yyval.str) = binop("!=", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1589 "y.tab.c"
+#line 1606 "y.tab.c"
     break;
 
   case 45: /* expr: expr AND expr  */
-#line 219 "parser.y"
+#line 236 "parser.y"
                         { (yyval.str) = binop("&&", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1595 "y.tab.c"
+#line 1612 "y.tab.c"
     break;
 
   case 46: /* expr: expr OR expr  */
-#line 220 "parser.y"
+#line 237 "parser.y"
                         { (yyval.str) = binop("||", (yyvsp[-2].str), (yyvsp[0].str)); }
-#line 1601 "y.tab.c"
+#line 1618 "y.tab.c"
     break;
 
   case 47: /* expr: NOT expr  */
-#line 221 "parser.y"
+#line 238 "parser.y"
                         { (yyval.str) = unop("!",     (yyvsp[0].str)); }
-#line 1607 "y.tab.c"
+#line 1624 "y.tab.c"
     break;
 
   case 48: /* expr: '!' expr  */
-#line 222 "parser.y"
+#line 239 "parser.y"
                          { (yyval.str) = unop("!",    (yyvsp[0].str)); }
-#line 1613 "y.tab.c"
+#line 1630 "y.tab.c"
     break;
 
   case 49: /* expr: '-' expr  */
-#line 223 "parser.y"
+#line 240 "parser.y"
                             { (yyval.str) = unop("uminus", (yyvsp[0].str)); }
-#line 1619 "y.tab.c"
+#line 1636 "y.tab.c"
     break;
 
   case 50: /* expr: '(' expr ')'  */
-#line 224 "parser.y"
+#line 241 "parser.y"
                         { (yyval.str) = (yyvsp[-1].str); }
-#line 1625 "y.tab.c"
+#line 1642 "y.tab.c"
     break;
 
   case 51: /* expr: ID  */
-#line 225 "parser.y"
+#line 242 "parser.y"
                         { (yyval.str) = (yyvsp[0].str); }
-#line 1631 "y.tab.c"
+#line 1648 "y.tab.c"
     break;
 
   case 52: /* expr: NUM  */
-#line 226 "parser.y"
+#line 243 "parser.y"
                         { (yyval.str) = (yyvsp[0].str); }
-#line 1637 "y.tab.c"
+#line 1654 "y.tab.c"
     break;
 
 
-#line 1641 "y.tab.c"
+#line 1658 "y.tab.c"
 
       default: break;
     }
@@ -1830,7 +1847,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 229 "parser.y"
+#line 246 "parser.y"
 
 
 void yyerror(const char *s)
@@ -1861,6 +1878,8 @@ int main(int argc, char *argv[])
 
     if (pending[0])                       /* label at the very end */
         emit("-", "-", "-", "-", "-");
+
+    renumber();                           /* t1, t2, t3 ... in order */
 
     if (use_numbers) {                    /* goto Lx -> goto <row> */
         for (int i = 0; i < nquads; i++) {

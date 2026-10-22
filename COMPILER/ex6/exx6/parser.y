@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #define MAX_ROWS 500
 #define LEN      32
@@ -89,6 +90,31 @@ static void paste(Chunk *c)
     free(c->q);
     free(c);
 }
+/* if c goto body ; goto end ; body: */
+static void branch(const char *c, const char *body, const char *end)
+{
+    emit("if", c, "-", "-", body);
+    emit("goto", "-", "-", "-", end);
+    emit_label(body);
+}
+
+/* rename temps t1,t2,... in order of appearance in the final table */
+static void renumber(void)
+{
+    char seen[MAX_ROWS * 3][LEN]; int n = 0;
+    for (int i = 0; i < nquads; i++) {
+        char *f[3] = { quads[i].arg1, quads[i].arg2, quads[i].result };
+        for (int k = 0; k < 3; k++) {
+            char *s = f[k];
+            if (s[0] != 't' || !isdigit((unsigned char)s[1]) ||
+                strspn(s + 1, "0123456789") != strlen(s + 1)) continue;
+            int j = 0;
+            while (j < n && strcmp(seen[j], s)) j++;
+            if (j == n) snprintf(seen[n++], LEN, "%s", s);
+            snprintf(s, LEN, "t%d", j + 1);
+        }
+    }
+}
 %}
 
 %union {
@@ -156,11 +182,8 @@ for_stmt
     : FOR '(' opt_assign ';'
       { $<str>$ = newlabel(); emit_label($<str>$); }                 /* 5: Lcond */
       expr ';'                                                       /* 6,7 */
-      { char *body = newlabel();
-        $<str>$ = newlabel();
-        emit("if",   $6, "-", "-", body);
-        emit("goto", "-", "-", "-", $<str>$);
-        emit_label(body); }                                          /* 8: Lend */
+      { char *body = newlabel(); $<str>$ = newlabel();
+        branch($6, body, $<str>$); }                                 /* 8: Lend */
       { $<pos>$ = nquads; }                                          /* 9 */
       opt_assign ')'                                                 /* 10,11 */
       { $<chunk>$ = cut_from($<pos>9); }                             /* 12 */
@@ -174,11 +197,8 @@ while_stmt
     : WHILE '('
       { $<str>$ = newlabel(); emit_label($<str>$); }                 /* 3: Lcond */
       expr ')'
-      { char *body = newlabel();
-        $<str>$ = newlabel();
-        emit("if",   $4, "-", "-", body);
-        emit("goto", "-", "-", "-", $<str>$);
-        emit_label(body); }                                          /* 6: Lend */
+      { char *body = newlabel(); $<str>$ = newlabel();
+        branch($4, body, $<str>$); }                                 /* 6: Lend */
       stmt
       { emit("goto", "-", "-", "-", $<str>3);
         emit_label($<str>6); }
@@ -186,11 +206,8 @@ while_stmt
 
 if_head
     : IF '(' expr ')'
-      { char *body = newlabel();
-        $$ = newlabel();
-        emit("if",   $3, "-", "-", body);
-        emit("goto", "-", "-", "-", $$);
-        emit_label(body); }
+      { char *body = newlabel(); $$ = newlabel();
+        branch($3, body, $$); }
     ;
 
 if_stmt
@@ -256,6 +273,8 @@ int main(int argc, char *argv[])
 
     if (pending[0])                       /* label at the very end */
         emit("-", "-", "-", "-", "-");
+
+    renumber();                           /* t1, t2, t3 ... in order */
 
     if (use_numbers) {                    /* goto Lx -> goto <row> */
         for (int i = 0; i < nquads; i++) {

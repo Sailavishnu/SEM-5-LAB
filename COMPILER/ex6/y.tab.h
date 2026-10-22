@@ -57,25 +57,15 @@ extern int yydebug;
     ID = 258,                      /* ID  */
     NUM = 259,                     /* NUM  */
     FOR = 260,                     /* FOR  */
-    WHILE = 261,                   /* WHILE  */
-    IF = 262,                      /* IF  */
-    ELSE = 263,                    /* ELSE  */
-    TYPE = 264,                    /* TYPE  */
-    AND = 265,                     /* AND  */
-    OR = 266,                      /* OR  */
-    NOT = 267,                     /* NOT  */
-    EQ = 268,                      /* EQ  */
-    NE = 269,                      /* NE  */
-    LE = 270,                      /* LE  */
-    GE = 271,                      /* GE  */
-    INC = 272,                     /* INC  */
-    DEC = 273,                     /* DEC  */
-    PLUSEQ = 274,                  /* PLUSEQ  */
-    MINUSEQ = 275,                 /* MINUSEQ  */
-    MULEQ = 276,                   /* MULEQ  */
-    DIVEQ = 277,                   /* DIVEQ  */
-    UMINUS = 278,                  /* UMINUS  */
-    LOWER_THAN_ELSE = 279          /* LOWER_THAN_ELSE  */
+    AND = 261,                     /* AND  */
+    OR = 262,                      /* OR  */
+    NOT = 263,                     /* NOT  */
+    LE = 264,                      /* LE  */
+    GE = 265,                      /* GE  */
+    EQ = 266,                      /* EQ  */
+    NE = 267,                      /* NE  */
+    INC = 268,                     /* INC  */
+    DEC = 269                      /* DEC  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -87,37 +77,24 @@ extern int yydebug;
 #define ID 258
 #define NUM 259
 #define FOR 260
-#define WHILE 261
-#define IF 262
-#define ELSE 263
-#define TYPE 264
-#define AND 265
-#define OR 266
-#define NOT 267
-#define EQ 268
-#define NE 269
-#define LE 270
-#define GE 271
-#define INC 272
-#define DEC 273
-#define PLUSEQ 274
-#define MINUSEQ 275
-#define MULEQ 276
-#define DIVEQ 277
-#define UMINUS 278
-#define LOWER_THAN_ELSE 279
+#define AND 261
+#define OR 262
+#define NOT 263
+#define LE 264
+#define GE 265
+#define EQ 266
+#define NE 267
+#define INC 268
+#define DEC 269
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 98 "parser.y"
+#line 53 "parser.y"
+ char *str; int pos; void *chunk; 
 
-    char  *str;
-    int    pos;
-    void  *chunk;
-
-#line 121 "y.tab.h"
+#line 98 "y.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
