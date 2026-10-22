@@ -11,7 +11,7 @@ typedef struct { Quad *q; int n; } Chunk;
 
 static Quad quads[MAX];
 static int  nq = 0, tc = 0, lc = 0;
-static char pending[64] = "";              /* label waiting for next quad */
+static char pending[64] = "";            
 
 int yylex(void);
 void yyerror(const char *s) { fprintf(stderr, "Syntax error\n"); }
@@ -32,7 +32,6 @@ static char *bin(const char *op, const char *a, const char *b)
     char *t = name('t', &tc); emit(op, a, b, "%s", t); return t;
 }
 
-/* cut the increment quads so they can be pasted after the loop body */
 static Chunk *cut(int start)
 {
     Chunk *c = malloc(sizeof *c);
@@ -119,9 +118,8 @@ int main(void)
 {
     if (!(yyin = fopen("input.txt", "r"))) { puts("Could not open input.txt"); return 1; }
     if (yyparse()) return 1;
-    if (*pending) emit("-", "-", "-", "-");            /* label at the very end */
-
-    /* renumber temps t1,t2,... in order of appearance */
+    if (*pending) emit("-", "-", "-", "-");            
+    
     char seen[MAX * 3][LEN]; int n = 0;
     for (int i = 0; i < nq; i++)
         for (int k = 0; k < 3; k++) {
