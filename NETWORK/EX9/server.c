@@ -4,182 +4,271 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <signal.h>
-#include <limits.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <dirent.h>
+
 #define PORT 8066
-#define BUFFER_SIZE 4096
-#define LINE_SIZE 1024
-#define MAX_FILE_SIZE (1024ULL * 1024ULL * 1024ULL)
-#ifndef NAME_MAX
-#define NAME_MAX 255
-#endif
-int send_all(int sock, const void *data, size_t len) {
-const char *p = data; while (len > 0) {
-ssize_t n = send(sock, p, len, 0); if (n <= 0) return -1; p += n; len -= (size_t)n;
+#define SIZE 1024
+#define BUF 4096
+#define MAX_FILE (1024ULL * 1024ULL * 1024ULL)
+
+int send_all(int sock, const void *data, size_t len)
+{
+    const char *p = data;
+    while (len > 0) {
+        ssize_t n = send(sock, p, len, 0);
+        if (n <= 0) return -1;
+        p += n;
+        len -= n;
     }
     return 0;
 }
-int recv_all(int sock, void *data, size_t len) {
-char *p = data; while (len > 0) {
-ssize_t n = recv(sock, p, len, 0); if (n <= 0) return -1; p += n; len -= (size_t)n;
+
+int recv_all(int sock, void *data, size_t len)
+{
+    char *p = data;
+    while (len > 0) {
+        ssize_t n = recv(sock, p, len, 0);
+        if (n <= 0) return -1;
+        p += n;
+        len -= n;
     }
     return 0;
 }
-int recv_line(int sock, char *buffer, size_t size) {
-size_t i = 0; char ch; if (size < 2) return -1; while (1) {
-ssize_t n = recv(sock, &ch, 1, 0); if (n == 0) return 0; if (n < 0) return -1; if (ch == '\n') {
-buffer[i] = '\0'; return 1;
-        }
-if (ch == '\r') continue; if (i >= size - 1) {
-            while (ch != '\n') {
-n = recv(sock, &ch, 1, 0); if (n <= 0) return -1;
-            }
-buffer[0] = '\0'; return -1;
-        }
-        buffer[i++] = ch;
+
+int recv_line(int sock, char *buf, size_t size)
+{
+    size_t i = 0;
+    char ch;
+    while (i < size - 1) {
+        ssize_t n = recv(sock, &ch, 1, 0);
+        if (n <= 0) return (int)n;
+        if (ch == '\n') break;
+        if (ch != '\r') buf[i++] = ch;
     }
+    buf[i] = '\0';
+    return 1;
 }
-void reply(int sock, const char *message) { send_all(sock, message, strlen(message)); } int valid_filename(const char *name) {
-if (name == NULL || name[0] == '\0') return 0; if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) return 0; for (size_t i = 0; name[i] != '\0'; i++) {
-unsigned char ch = (unsigned char)name[i]; if (!isalnum(ch) && ch != '.' && ch != '_' && ch != '-') return 0;
+
+void reply(int sock, const char *msg)
+{
+    send_all(sock, msg, strlen(msg));
+}
+
+int valid_name(const char *name)
+{
+    if (!name || !*name || !strcmp(name, ".") ||
+        !strcmp(name, "..")) return 0;
+    for (int i = 0; name[i]; i++) {
+        if (!isalnum((unsigned char)name[i]) &&
+            name[i] != '.' && name[i] != '_' &&
+            name[i] != '-') return 0;
     }
     return 1;
 }
-int authenticate(const char *username, const char *password) {
-FILE *fp = fopen("users.txt", "r"); char user[50], pass[50]; if (fp == NULL) {
-perror("users.txt"); return 0;
-    }
-    while (fscanf(fp, "%49s %49s", user, pass) == 2) {
-if (strcmp(username, user) == 0 && strcmp(password, pass) == 0) {
-fclose(fp); return 1;
+
+int authenticate(const char *user, const char *pass)
+{
+    FILE *fp = fopen("users.txt", "r");
+    char u[50], p[50];
+    if (!fp) return 0;
+    while (fscanf(fp, "%49s %49s", u, p) == 2) {
+        if (!strcmp(user, u) && !strcmp(pass, p)) {
+            fclose(fp);
+            return 1;
         }
     }
-fclose(fp); return 0;
+    fclose(fp);
+    return 0;
 }
-void handle_DIR(int client) {
-DIR *dir = opendir("server_files"); if (dir == NULL) {
-reply(client, "550 Cannot open server directory.\n"); return;
+
+void list_files(int client)
+{
+    DIR *dir = opendir("server_files");
+    struct dirent *entry;
+    if (!dir) {
+        reply(client, "550 Cannot open directory.\n");
+        return;
     }
-reply(client, "150 Here comes the directory listing.\n"); struct dirent *entry; while ((entry = readdir(dir)) != NULL) {
-if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue; if (send_all(client, entry->d_name, strlen(entry->d_name)) < 0 || send_all(client, "\n", 1) < 0) {
-closedir(dir); return;
-        }
+    reply(client, "150 Directory listing.\n");
+    while ((entry = readdir(dir)) != NULL) {
+        if (!strcmp(entry->d_name, ".") ||
+            !strcmp(entry->d_name, "..")) continue;
+        send_all(client, entry->d_name, strlen(entry->d_name));
+        send_all(client, "\n", 1);
     }
-closedir(dir); reply(client, ".\n226 Directory Listing  complete.\n");
+    closedir(dir);
+    reply(client, ".\n226 Directory listing complete.\n");
 }
-void handle_stor(int client, const char *filename, unsigned long long file_size) {
-char path[LINE_SIZE]; char buffer[BUFFER_SIZE]; if (!valid_filename(filename)) {
-reply(client, "550 Invalid filename.\n"); return;
+
+void receive_file(int client, char *name, unsigned long long size)
+{
+    char path[SIZE], buf[BUF];
+    if (!valid_name(name) || size > MAX_FILE) {
+        reply(client, "550 Invalid file or size.\n");
+        return;
     }
-    if (file_size > MAX_FILE_SIZE) {
-reply(client, "552 File too large.\n"); return;
+    snprintf(path, sizeof(path), "server_files/%s", name);
+    FILE *fp = fopen(path, "wb");
+    if (!fp) {
+        reply(client, "550 Cannot create file.\n");
+        return;
     }
-int n = snprintf(path, sizeof(path), "server_files/%s", filename); if (n < 0 || (size_t)n >= sizeof(path)) {
-reply(client, "550 Invalid file path.\n"); return;
-    }
-FILE *fp = fopen(path, "wb"); if (fp == NULL) {
-reply(client, "550 Cannot create file.\n"); return;
-    }
-reply(client, "150 Ready to receive file.\n"); unsigned long long remaining = file_size; int write_error = 0; while (remaining > 0) {
-size_t chunk = remaining > BUFFER_SIZE ? BUFFER_SIZE : (size_t)remaining; if (recv_all(client, buffer, chunk) < 0) {
-fclose(fp); remove(path); return;
+    reply(client, "150 Ready to receive file.\n");
+    while (size > 0) {
+        size_t chunk = size > BUF ? BUF : (size_t)size;
+        if (recv_all(client, buf, chunk) < 0) {
+            fclose(fp);
+            remove(path);
+            return;
         }
-if (!write_error && fwrite(buffer, 1, chunk, fp) != chunk) { write_error = 1; } remaining -= chunk;
+        if (fwrite(buf, 1, chunk, fp) != chunk) {
+            fclose(fp);
+            remove(path);
+            reply(client, "451 Write failed.\n");
+            return;
+        }
+        size -= chunk;
     }
-if (fclose(fp) != 0) write_error = 1; if (write_error) reply(client, "451 File write failed.\n"); else reply(client, "226 Transfer complete.\n");
-if (!write_error) printf("Uploaded: %s\n", filename);
+    fclose(fp);
+    reply(client, "226 Transfer complete.\n");
+    printf("Uploaded: %s\n", name);
 }
-void handle_retr(int client, const char *filename) {
-char path[LINE_SIZE]; char buffer[BUFFER_SIZE]; char response[LINE_SIZE]; char line[LINE_SIZE]; if (!valid_filename(filename)) {
-reply(client, "550 Invalid filename.\n"); return;
+
+void send_file(int client, char *name)
+{
+    char path[SIZE], buf[BUF], line[SIZE];
+    FILE *fp;
+    unsigned long long size;
+    if (!valid_name(name)) {
+        reply(client, "550 Invalid filename.\n");
+        return;
     }
-int n = snprintf(path, sizeof(path), "server_files/%s", filename); if (n < 0 || (size_t)n >= sizeof(path)) {
-reply(client, "550 Invalid file path.\n"); return;
+    snprintf(path, sizeof(path), "server_files/%s", name);
+    fp = fopen(path, "rb");
+    if (!fp) {
+        reply(client, "550 File not found.\n");
+        return;
     }
-FILE *fp = fopen(path, "rb"); if (fp == NULL) {
-reply(client, "550 File not found.\n"); return;
+    fseek(fp, 0, SEEK_END);
+    long end = ftell(fp);
+    rewind(fp);
+    if (end < 0) {
+        fclose(fp);
+        reply(client, "451 Cannot read file.\n");
+        return;
     }
-    if (fseek(fp, 0, SEEK_END) != 0) {
-fclose(fp); reply(client, "451 Cannot read file.\n"); return;
+    size = (unsigned long long)end;
+    snprintf(line, sizeof(line), "150 SIZE %llu\n", size);
+    reply(client, line);
+    if (recv_line(client, line, sizeof(line)) != 1 ||
+        strcmp(line, "READY")) {
+        fclose(fp);
+        reply(client, "426 Transfer aborted.\n");
+        return;
     }
-long end = ftell(fp); if (end < 0 || fseek(fp, 0, SEEK_SET) != 0) {
-fclose(fp); reply(client, "451 Cannot read file.\n"); return;
-    }
-unsigned long long file_size = (unsigned long long)end; snprintf(response, sizeof(response), "150 SIZE %llu\n", file_size); if (send_all(client, response, strlen(response)) < 0) {
-fclose(fp); return;
-    }
-    if (recv_line(client, line, sizeof(line)) != 1) {
-fclose(fp); return;
-    }
-    if (strcmp(line, "READY") != 0) {
-fclose(fp); reply(client, "426 Transfer aborted.\n"); return;
-    }
-unsigned long long remaining = file_size; while (remaining > 0) {
-size_t chunk = remaining > BUFFER_SIZE ? BUFFER_SIZE : (size_t)remaining; size_t bytes = fread(buffer, 1, chunk, fp); if (bytes != chunk) {
-fclose(fp); return;
+    while (size > 0) {
+        size_t chunk = size > BUF ? BUF : (size_t)size;
+        size_t n = fread(buf, 1, chunk, fp);
+        if (n != chunk || send_all(client, buf, n) < 0) {
+            fclose(fp);
+            return;
         }
-        if (send_all(client, buffer, bytes) < 0) {
-fclose(fp); return;
-        }
-        remaining -= chunk;
+        size -= chunk;
     }
-fclose(fp); reply(client, "226 Transfer complete.\n"); printf("Downloaded by client: %s\n", filename);
+    fclose(fp);
+    reply(client, "226 Transfer complete.\n");
+    printf("Downloaded: %s\n", name);
 }
-void handle_client(int client) {
-char line[LINE_SIZE]; char username[50] = ""; char password[50]; reply(client, "220 FTP Server Ready.\n"); if (recv_line(client, line, sizeof(line)) != 1 ||
-    sscanf(line, "USER %49s", username) != 1) {
-reply(client, "530 Please send USER first.\n"); return;
+
+void handle_client(int client)
+{
+    char line[SIZE], user[50], pass[50], name[256];
+    unsigned long long size;
+    reply(client, "220 FTP Server Ready.\n");
+    if (recv_line(client, line, sizeof(line)) != 1 ||
+        sscanf(line, "USER %49s", user) != 1) {
+        reply(client, "530 Send USER first.\n");
+        return;
     }
-reply(client, "331 Enter password\n"); if (recv_line(client, line, sizeof(line)) != 1 || sscanf(line, "PASS %49s", password) != 1) {
-reply(client, "530 Invalid password command.\n"); return;
+    reply(client, "331 Enter password.\n");
+    if (recv_line(client, line, sizeof(line)) != 1 ||
+        sscanf(line, "PASS %49s", pass) != 1) {
+        reply(client, "530 Invalid password command.\n");
+        return;
     }
-    if (!authenticate(username, password)) {
-reply(client, "530 Login incorrect.\n"); printf("Login failed: %s\n", username); return;
+    if (!authenticate(user, pass)) {
+        reply(client, "530 Login incorrect.\n");
+        return;
     }
-memset(password, 0, sizeof(password)); reply(client, "230 Login successful. Access granted.\n"); printf("Logged in: %s\n", username); while (1) {
-if (recv_line(client, line, sizeof(line)) != 1) break; if (strcmp(line, "DIR") == 0) {
-            handle_DIR(client);} else if (strcmp(line, "QUIT") == 0) {
-reply(client, "221 Goodbye. Connection closed.\n"); break;} else if (strncmp(line, "STOR ", 5) == 0) {
-char filename[NAME_MAX + 1]; unsigned long long file_size; if (sscanf(line + 5, "%255s %llu", filename, &file_size) != 2) {
-reply(client, "501 Invalid STOR command.\n"); continue;
-            }
-            handle_stor(client, filename, file_size);} else if (strncmp(line, "RETR ", 5) == 0) {
-char filename[NAME_MAX + 1]; if (sscanf(line + 5, "%255s", filename) != 1) {
-reply(client, "501 Invalid RETR command.\n"); continue;
-            }
-            handle_retr(client, filename);} else { reply(client, "502 Command not implemented.\n"); }
-    }
-    printf("Disconnected: %s\n", username);
-}
-int main(void) {
-int server, client; int opt = 1; struct sockaddr_in address; signal(SIGCHLD, SIG_IGN); signal(SIGPIPE, SIG_IGN); if (mkdir("server_files", 0755) < 0) {
-struct stat st; if (stat("server_files", &st) < 0 || !S_ISDIR(st.st_mode)) {
-perror("server_files"); return 1;
+    memset(pass, 0, sizeof(pass));
+    reply(client, "230 Login successful.\n");
+    printf("Logged in: %s\n", user);
+    while (recv_line(client, line, sizeof(line)) == 1) {
+        if (!strcmp(line, "DIR")) {
+            list_files(client);
+        } else if (!strcmp(line, "QUIT")) {
+            reply(client, "221 Goodbye.\n");
+            break;
+        } else if (!strncmp(line, "STOR ", 5)) {
+            if (sscanf(line + 5, "%255s %llu", name, &size) == 2)
+                receive_file(client, name, size);
+            else
+                reply(client, "501 Invalid STOR command.\n");
+        } else if (!strncmp(line, "RETR ", 5)) {
+            if (sscanf(line + 5, "%255s", name) == 1)
+                send_file(client, name);
+            else
+                reply(client, "501 Invalid RETR command.\n");
+        } else {
+            reply(client, "502 Unknown command.\n");
         }
     }
-server = socket(AF_INET, SOCK_STREAM, 0); if (server < 0) {
-perror("socket"); return 1;
+    printf("Disconnected: %s\n", user);
+}
+
+int main(void)
+{
+    int server, client, opt = 1;
+    struct sockaddr_in addr;
+    signal(SIGCHLD, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN);
+    mkdir("server_files", 0755);
+    server = socket(AF_INET, SOCK_STREAM, 0);
+    if (server < 0) {
+        perror("socket");
+        return 1;
     }
-    setsockopt(server, SOL_SOCKET, SO_REUSEADDR,
-&opt, sizeof(opt)); memset(&address, 0, sizeof(address)); address.sin_family = AF_INET; address.sin_addr.s_addr = htonl(INADDR_ANY); address.sin_port = htons(PORT);
-if (bind(server, (struct sockaddr *)&address, sizeof(address)) < 0) {
-perror("bind"); close(server); return 1;
+    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(PORT);
+    if (bind(server, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        perror("bind");
+        close(server);
+        return 1;
     }
     if (listen(server, 10) < 0) {
-perror("listen"); close(server); return 1;
+        perror("listen");
+        close(server);
+        return 1;
     }
-printf("[+] Concurrent FTP Server started on port %d.\n", PORT); printf("[+] Waiting for clients...\n"); while (1) {
-client = accept(server, NULL, NULL); if (client < 0) continue; pid_t pid = fork(); if (pid < 0) {
-perror("fork"); close(client); continue;
-        }
+    printf("FTP server running on port %d\n", PORT);
+    while (1) {
+        client = accept(server, NULL, NULL);
+        if (client < 0) continue;
+        pid_t pid = fork();
         if (pid == 0) {
-close(server); handle_client(client); close(client); _exit(0);
+            close(server);
+            handle_client(client);
+            close(client);
+            _exit(0);
         }
         close(client);
     }
-close(server); return 0;
+    close(server);
+    return 0;
 }
