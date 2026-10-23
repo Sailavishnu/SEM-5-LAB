@@ -38,13 +38,13 @@ static Chunk *cut(int start)
     c->n = nq - start;
     c->q = memcpy(malloc((c->n + 1) * sizeof(Quad)), &quads[start], c->n * sizeof(Quad));
     nq = start;
-    if (c->n) { strcpy(pending, c->q[0].label); strcpy(c->q[0].label, "-"); }   /* give label back */
+    if (c->n) { strcpy(pending, c->q[0].label); strcpy(c->q[0].label, "-"); }   
     return c;
 }
 
 static void paste(Chunk *c)
 {
-    if (c->n && *pending) { strcpy(c->q[0].label, pending); *pending = 0; }   /* pending label -> first pasted quad */
+    if (c->n && *pending) { strcpy(c->q[0].label, pending); *pending = 0; }   
     memcpy(&quads[nq], c->q, c->n * sizeof(Quad)); nq += c->n; free(c->q); free(c);
 }
 %}
