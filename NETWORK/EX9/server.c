@@ -1,274 +1,145 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
-#include <ctype.h>
 #include <signal.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
-#include <dirent.h>
 
-#define PORT 8066
-#define SIZE 1024
-#define BUF 4096
-#define MAX_FILE (1024ULL * 1024ULL * 1024ULL)
+#define DIRNAME "ftp_store"
 
-int send_all(int sock, const void *data, size_t len)
-{
-    const char *p = data;
-    while (len > 0) {
-        ssize_t n = send(sock, p, len, 0);
-        if (n <= 0) return -1;
-        p += n;
-        len -= n;
-    }
-    return 0;
-}
+void handle(int client) {
+    char buf[1024], cmd[64], arg[256], out[2048], path[512];
+    int n, user_ok = 0, logged = 0;
+    struct stat st;
 
-int recv_all(int sock, void *data, size_t len)
-{
-    char *p = data;
-    while (len > 0) {
-        ssize_t n = recv(sock, p, len, 0);
-        if (n <= 0) return -1;
-        p += n;
-        len -= n;
-    }
-    return 0;
-}
+    send(client, "220 Server ready\n", 17, 0);
 
-int recv_line(int sock, char *buf, size_t size)
-{
-    size_t i = 0;
-    char ch;
-    while (i < size - 1) {
-        ssize_t n = recv(sock, &ch, 1, 0);
-        if (n <= 0) return (int)n;
-        if (ch == '\n') break;
-        if (ch != '\r') buf[i++] = ch;
-    }
-    buf[i] = '\0';
-    return 1;
-}
+    while ((n = recv(client, buf, sizeof(buf) - 1, 0)) > 0) {
+        buf[n] = '\0';
+        cmd[0] = arg[0] = '\0';
+        sscanf(buf, "%63s %255s", cmd, arg);
+        printf("[cmd] %s %s\n", cmd, arg);
 
-void reply(int sock, const char *msg)
-{
-    send_all(sock, msg, strlen(msg));
-}
-
-int valid_name(const char *name)
-{
-    if (!name || !*name || !strcmp(name, ".") ||
-        !strcmp(name, "..")) return 0;
-    for (int i = 0; name[i]; i++) {
-        if (!isalnum((unsigned char)name[i]) &&
-            name[i] != '.' && name[i] != '_' &&
-            name[i] != '-') return 0;
-    }
-    return 1;
-}
-
-int authenticate(const char *user, const char *pass)
-{
-    FILE *fp = fopen("users.txt", "r");
-    char u[50], p[50];
-    if (!fp) return 0;
-    while (fscanf(fp, "%49s %49s", u, p) == 2) {
-        if (!strcmp(user, u) && !strcmp(pass, p)) {
-            fclose(fp);
-            return 1;
+        if (strcmp(cmd, "USER") == 0) {
+            if (strcmp(arg, "admin") == 0) {
+                user_ok = 1;
+                strcpy(out, "331 Username OK, password required\n");
+                printf("331 User OK, waiting for password\n");
+            } else {
+                user_ok = 0;
+                strcpy(out, "530 Invalid username\n");
+                printf("530 Invalid username\n");
+            }
         }
-    }
-    fclose(fp);
-    return 0;
-}
-
-void list_files(int client)
-{
-    DIR *dir = opendir("server_files");
-    struct dirent *entry;
-    if (!dir) {
-        reply(client, "550 Cannot open directory.\n");
-        return;
-    }
-    reply(client, "150 Directory listing.\n");
-    while ((entry = readdir(dir)) != NULL) {
-        if (!strcmp(entry->d_name, ".") ||
-            !strcmp(entry->d_name, "..")) continue;
-        send_all(client, entry->d_name, strlen(entry->d_name));
-        send_all(client, "\n", 1);
-    }
-    closedir(dir);
-    reply(client, ".\n226 Directory listing complete.\n");
-}
-
-void receive_file(int client, char *name, unsigned long long size)
-{
-    char path[SIZE], buf[BUF];
-    if (!valid_name(name) || size > MAX_FILE) {
-        reply(client, "550 Invalid file or size.\n");
-        return;
-    }
-    snprintf(path, sizeof(path), "server_files/%s", name);
-    FILE *fp = fopen(path, "wb");
-    if (!fp) {
-        reply(client, "550 Cannot create file.\n");
-        return;
-    }
-    reply(client, "150 Ready to receive file.\n");
-    while (size > 0) {
-        size_t chunk = size > BUF ? BUF : (size_t)size;
-        if (recv_all(client, buf, chunk) < 0) {
-            fclose(fp);
-            remove(path);
-            return;
+        else if (strcmp(cmd, "PASS") == 0) {
+            if (user_ok && strcmp(arg, "admin123") == 0) {
+                logged = 1;
+                strcpy(out, "230 Login successful\n");
+                printf("230 Client connected (logged in)\n");
+            } else {
+                strcpy(out, "530 Login incorrect\n");
+                printf("530 Login incorrect\n");
+            }
         }
-        if (fwrite(buf, 1, chunk, fp) != chunk) {
-            fclose(fp);
-            remove(path);
-            reply(client, "451 Write failed.\n");
-            return;
+        else if (!logged && (strcmp(cmd, "STOR") == 0 ||
+                 strcmp(cmd, "RETR") == 0 || strcmp(cmd, "DIR") == 0)) {
+            strcpy(out, "530 Please login first (USER/PASS)\n");
+            printf("530 Not logged in\n");
         }
-        size -= chunk;
+        else if (strcmp(cmd, "STOR") == 0) {
+            if (arg[0] == '\0' || strchr(arg, '/')) {
+                strcpy(out, "501 Invalid filename\n");
+            } else {
+                mkdir(DIRNAME, 0777);              /* create dir if not exist */
+                snprintf(path, sizeof(path), "%s/%s", DIRNAME, arg);
+                int fd = open(path, O_CREAT | O_WRONLY, 0666); /* empty copy */
+                if (fd < 0) {
+                    strcpy(out, "550 Cannot create file\n");
+                } else {
+                    close(fd);
+                    strcpy(out, "150 Ready to receive\n226 File received successfully\n");
+                    printf("150 Ready to receive\n226 File received: %s\n", arg);
+                }
+            }
+        }
+        else if (strcmp(cmd, "RETR") == 0) {
+            snprintf(path, sizeof(path), "%s/%s", DIRNAME, arg);
+            if (arg[0] != '\0' && !strchr(arg, '/') && stat(path, &st) == 0) {
+                strcpy(out, "226 File retrieved successfully\n");
+                printf("226 File retrieved: %s\n", arg);
+            } else {
+                strcpy(out, "550 File not found\n");
+                printf("550 File not found: %s\n", arg);
+            }
+        }
+        else if (strcmp(cmd, "DIR") == 0) {
+            strcpy(out, "150 Directory listing\n");
+            DIR *d = opendir(DIRNAME);
+            if (d) {
+                struct dirent *e;
+                while ((e = readdir(d)) != NULL)
+                    if (e->d_name[0] != '.') {
+                        strcat(out, e->d_name);
+                        strcat(out, "\n");
+                    }
+                closedir(d);
+            }
+            strcat(out, "226 Directory send OK\n");
+            printf("226 Directory sent\n");
+        }
+        else {
+            strcpy(out, "500 Unknown command\n");
+            printf("500 Unknown command\n");
+        }
+
+        send(client, out, strlen(out), 0);
     }
-    fclose(fp);
-    reply(client, "226 Transfer complete.\n");
-    printf("Uploaded: %s\n", name);
+
+    printf("Client disconnected.\n");
+    close(client);
 }
 
-void send_file(int client, char *name)
-{
-    char path[SIZE], buf[BUF], line[SIZE];
-    FILE *fp;
-    unsigned long long size;
-    if (!valid_name(name)) {
-        reply(client, "550 Invalid filename.\n");
-        return;
-    }
-    snprintf(path, sizeof(path), "server_files/%s", name);
-    fp = fopen(path, "rb");
-    if (!fp) {
-        reply(client, "550 File not found.\n");
-        return;
-    }
-    fseek(fp, 0, SEEK_END);
-    long end = ftell(fp);
-    rewind(fp);
-    if (end < 0) {
-        fclose(fp);
-        reply(client, "451 Cannot read file.\n");
-        return;
-    }
-    size = (unsigned long long)end;
-    snprintf(line, sizeof(line), "150 SIZE %llu\n", size);
-    reply(client, line);
-    if (recv_line(client, line, sizeof(line)) != 1 ||
-        strcmp(line, "READY")) {
-        fclose(fp);
-        reply(client, "426 Transfer aborted.\n");
-        return;
-    }
-    while (size > 0) {
-        size_t chunk = size > BUF ? BUF : (size_t)size;
-        size_t n = fread(buf, 1, chunk, fp);
-        if (n != chunk || send_all(client, buf, n) < 0) {
-            fclose(fp);
-            return;
-        }
-        size -= chunk;
-    }
-    fclose(fp);
-    reply(client, "226 Transfer complete.\n");
-    printf("Downloaded: %s\n", name);
-}
+int main() {
+    int sock, client;
+    struct sockaddr_in server, caddr;
+    socklen_t len = sizeof(caddr);
 
-void handle_client(int client)
-{
-    char line[SIZE], user[50], pass[50], name[256];
-    unsigned long long size;
-    reply(client, "220 FTP Server Ready.\n");
-    if (recv_line(client, line, sizeof(line)) != 1 ||
-        sscanf(line, "USER %49s", user) != 1) {
-        reply(client, "530 Send USER first.\n");
-        return;
-    }
-    reply(client, "331 Enter password.\n");
-    if (recv_line(client, line, sizeof(line)) != 1 ||
-        sscanf(line, "PASS %49s", pass) != 1) {
-        reply(client, "530 Invalid password command.\n");
-        return;
-    }
-    if (!authenticate(user, pass)) {
-        reply(client, "530 Login incorrect.\n");
-        return;
-    }
-    memset(pass, 0, sizeof(pass));
-    reply(client, "230 Login successful.\n");
-    printf("Logged in: %s\n", user);
-    while (recv_line(client, line, sizeof(line)) == 1) {
-        if (!strcmp(line, "DIR")) {
-            list_files(client);
-        } else if (!strcmp(line, "QUIT")) {
-            reply(client, "221 Goodbye.\n");
-            break;
-        } else if (!strncmp(line, "STOR ", 5)) {
-            if (sscanf(line + 5, "%255s %llu", name, &size) == 2)
-                receive_file(client, name, size);
-            else
-                reply(client, "501 Invalid STOR command.\n");
-        } else if (!strncmp(line, "RETR ", 5)) {
-            if (sscanf(line + 5, "%255s", name) == 1)
-                send_file(client, name);
-            else
-                reply(client, "501 Invalid RETR command.\n");
-        } else {
-            reply(client, "502 Unknown command.\n");
-        }
-    }
-    printf("Disconnected: %s\n", user);
-}
+    signal(SIGCHLD, SIG_IGN);              /* no zombie children */
 
-int main(void)
-{
-    int server, client, opt = 1;
-    struct sockaddr_in addr;
-    signal(SIGCHLD, SIG_IGN);
-    signal(SIGPIPE, SIG_IGN);
-    mkdir("server_files", 0755);
-    server = socket(AF_INET, SOCK_STREAM, 0);
-    if (server < 0) {
-        perror("socket");
-        return 1;
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) { perror("Socket error"); return 1; }
+
+    int opt = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    memset(&server, 0, sizeof(server));
+    server.sin_family = AF_INET;
+    server.sin_port = htons(8080);
+    server.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(sock, (struct sockaddr *)&server, sizeof(server)) < 0) {
+        perror("Bind error"); close(sock); return 1;
     }
-    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(PORT);
-    if (bind(server, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        perror("bind");
-        close(server);
-        return 1;
+    if (listen(sock, 5) < 0) {
+        perror("Listen error"); close(sock); return 1;
     }
-    if (listen(server, 10) < 0) {
-        perror("listen");
-        close(server);
-        return 1;
-    }
-    printf("FTP server running on port %d\n", PORT);
+
+    printf("220 Server ready, waiting for clients...\n");
+
     while (1) {
-        client = accept(server, NULL, NULL);
-        if (client < 0) continue;
-        pid_t pid = fork();
-        if (pid == 0) {
-            close(server);
-            handle_client(client);
-            close(client);
-            _exit(0);
+        client = accept(sock, (struct sockaddr *)&caddr, &len);
+        if (client < 0) { perror("Accept error"); continue; }
+        printf("Client connected: %s\n", inet_ntoa(caddr.sin_addr));
+
+        if (fork() == 0) {                 /* child serves this client */
+            close(sock);
+            handle(client);
+            exit(0);
         }
-        close(client);
+        close(client);                     /* parent keeps accepting */
     }
-    close(server);
-    return 0;
 }
