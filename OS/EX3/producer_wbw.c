@@ -1,65 +1,66 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <string.h>
-#include <unistd.h>
+
+#define SIZE 10
+#define KEY 2461
+#define SHM_SIZE (sizeof(int) * 20)
 
 int main()
 {
-   int shmid, num, *buf;
-   int size = 10;
+    int shmid, num, *buf;
 
-   // Create shared memory
-   shmid = shmget(2461, sizeof(int) * 20, IPC_CREAT | IPC_EXCL | 0666);
-   if (shmid == -1)
-   {
-      shmid = shmget(2461, sizeof(int) * 20, 0666);
-      shmctl(shmid, IPC_RMID, NULL);
-      shmid = shmget(2461, sizeof(int) * 20, IPC_CREAT | 0666);
-   }
+    // Create a NEW shared memory segment
+    shmid = shmget(KEY, SHM_SIZE, IPC_CREAT | IPC_EXCL | 0666);
 
-   buf = (int *)shmat(shmid, NULL, 0);
-   memset(buf, 0, sizeof(int) * 20);
+    if (shmid == -1) {
+        printf("Shared memory already exists or creation failed.\n");
+        printf("Check ipcs -m and remove any stale segment first.\n");
+        return 1;
+    }
 
-   buf[10] = 0;   // write ptr
-   buf[11] = 0;   // read ptr
-   buf[12] = 1;   // producer running
-   buf[14] = 0;   // production count
-   buf[15] = 0;   // consumption count
+    buf = (int *)shmat(shmid, NULL, 0);
 
-   printf("=== PRODUCER STARTED ===\n");
-   printf("Enter values (enter -1 to exit):\n\n");
+    if (buf == (void *)-1) {
+        perror("shmat");
+        shmctl(shmid, IPC_RMID, NULL);
+        return 1;
+    }
 
-   while (1)
-   {
-      // Case 1: Buffer full - wait
-      while (((buf[10] + 1) % size) == buf[11])
-      {
-         printf("[PRODUCER BLOCKED - Buffer FULL]\n");
-      }
+    // Initialize shared variables
+    buf[10] = 0;  // Write pointer
+    buf[11] = 0;  // Read pointer
+    buf[12] = 1;  // Producer running
+    buf[13] = 1;  // Initialization complete
 
-      printf("Enter: ");
-      fflush(stdout);
-      scanf("%d", &num);
-      getchar();
+    printf("Producer started. Enter -1 to stop.\n");
 
-      if (num == -1)
-         break;
+    while (1) {
+        // Busy wait while buffer is full
+        while ((buf[10] + 1) % SIZE == buf[11])
+            ;
 
-      // Case 3: Write to buffer
-      buf[buf[10]] = num;
-      buf[10] = (buf[10] + 1) % size;
-      buf[14]++;  // SIGNAL: increment production count
+        printf("Enter data: ");
 
-      printf("  ✓ Produced: %d (count=%d)\n", num, buf[14]);
-   }
+        if (scanf("%d", &num) != 1) {
+            printf("Invalid input.\n");
+            break;
+        }
 
-   buf[12] = 0;  // Producer stopped
-   printf("\n[PRODUCER STOPPED]\n");
-   sleep(1);
+        if (num == -1)
+            break;
 
-   shmdt(buf);
-   return 0;
+        buf[buf[10]] = num;
+        buf[10] = (buf[10] + 1) % SIZE;
+
+        printf("Produced: %d\n", num);
+    }
+
+    buf[12] = 0;  // Producer finished
+
+    printf("Producer finished.\n");
+
+    shmdt(buf);
+    return 0;
 }

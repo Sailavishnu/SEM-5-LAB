@@ -18,7 +18,6 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    // Create shared memory
     shmid = shmget(4777, sizeof(int) * size, IPC_CREAT | 0666);
 
     if (shmid == -1)
@@ -30,7 +29,6 @@ int main()
 
     printf("Shared memory created successfully.\n");
 
-    // Attach shared memory
     buf = (int *)shmat(shmid, NULL, 0);
 
     if (buf == (void *)-1)
@@ -42,7 +40,6 @@ int main()
 
     printf("Shared memory attached successfully.\n");
 
-    // Fork the process
     pid_t pid = fork();
 
     if (pid < 0)
@@ -65,7 +62,6 @@ int main()
 
         printf("\nAll data written successfully by Producer.\n");
 
-        // Detach from shared memory
         if (shmdt(buf) == -1)
         {
             perror("Error");
@@ -89,7 +85,6 @@ int main()
             printf("Data[%d] = %d\n", i + 1, buf[i]);
         }
 
-        // Detach from shared memory
         if (shmdt(buf) == -1)
         {
             perror("Error");
@@ -100,7 +95,6 @@ int main()
             printf("\nConsumer detached from shared memory successfully.\n");
         }
 
-        // Clean up and delete the shared memory segment
         if (shmctl(shmid, IPC_RMID, NULL) == -1)
         {
             perror("Error");

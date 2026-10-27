@@ -378,7 +378,7 @@ After Pass 4:
 | =      | t12      |                | result         |
 +--------+----------+----------------+----------------+----------------+
 
-=== Pass 5: Dead Code Elimination ===
+=== Pass 5: Dead Code Elimination ===x
   DCE: removed | =      | t3       |                | t10            |
   DCE: removed | =      | t8       |                | t9             |
   DCE: removed | =      | 5        |                | a              |

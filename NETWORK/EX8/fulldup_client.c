@@ -1,137 +1,85 @@
+
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <signal.h>
 #include <arpa/inet.h>
-#include <sys/socket.h>
+#include <sys/time.h>
+#include <signal.h>
+#include <errno.h>
+#include <sys/wait.h>
 
-#define PORT 8082
-#define SIZE 1024
-
-int s;
-struct sockaddr_in addr;
-socklen_t len;
-
-void cleanup(int sig)
+int main()
 {
-    sendto(s, "EXIT", 4, 0,
-           (struct sockaddr *)&addr, len);
-    printf("\nYou left the chat.\n");
-    close(s);
-    exit(0);
-}
-
-int main(void)
-{
-    char b[SIZE];
-    int n;
-    pid_t pid;
+    int s, n;
+    char msg[100];
+    struct sockaddr_in server = {0};
+    struct timeval tv = {1, 0};
+    socklen_t len = sizeof(server);
 
     s = socket(AF_INET, SOCK_DGRAM, 0);
-    if (s < 0) {
-        perror("socket");
-        return 1;
-    }
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(PORT);
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    len = sizeof(addr);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(8082);
+    server.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    signal(SIGINT, cleanup);
+    printf("Waiting for server...\n");
 
-    /* ---- Send HELLO and wait for connection ---- */
-    sendto(s, "HELLO", 5, 0,
-           (struct sockaddr *)&addr, len);
+    while (1)
+    {
+        sendto(s, "CONNECT", 7, 0,
+               (struct sockaddr *)&server, len);
 
-    while (1) {
-        n = recvfrom(s, b, SIZE - 1, 0, NULL, NULL);
-        if (n <= 0) {
-            printf("Server not responding\n");
-            close(s);
-            return 1;
-        }
-        b[n] = '\0';
+        n = recvfrom(s, msg, 99, 0, NULL, NULL);
 
-        if (strcmp(b, "CONNECTED") == 0) {
-            printf("UDP CLIENT CONNECTED\n");
-            printf("Type EXIT to quit.\n\n");
-            break;
-        }
-
-        if (strcmp(b, "WAIT") == 0) {
-            printf("This is an iterative server, only one client can connect at a time. Please wait...\n");
-            printf("Waiting for server... (do not close)\n");
-            /* Keep waiting; server will send CONNECTED when ready */
-            continue;
-        }
-
-        if (strcmp(b, "QUEUE_FULL") == 0) {
-            printf("Server busy. Queue full. Try again later.\n");
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                continue;
+            perror("recvfrom");
             close(s);
             return 1;
         }
 
-        printf("Unexpected response: %s\n", b);
+        msg[n] = '\0';
+        if (strcmp(msg, "CONNECTED") == 0) break;
     }
 
-    pid = fork();
+    printf("Connected! Type QUIT to exit.\n");
 
-    if (pid < 0) {
-        perror("fork");
-        close(s);
-        return 1;
-    }
+    int r = fork();
 
-    if (pid == 0) {
-        while (1) {
-            n = recvfrom(s, b, SIZE - 1, 0, NULL, NULL);
-            if (n <= 0) break;
+    if (r == 0)
+    {
+        while (1)
+        {
+            n = recvfrom(s, msg, 99, 0, NULL, NULL);
+            if (n <= 0) continue;
+            msg[n] = '\0';
 
-            b[n] = '\0';
-
-            printf("\r\033[K");
-
-            if (strcmp(b, "EXIT") == 0) {
-                printf("Server left the chat.\n");
+            if (strcmp(msg, "QUIT") == 0) {
                 kill(getppid(), SIGTERM);
-                break;
+                _exit(0);
             }
 
-            printf("Server: %s\nClient> ", b);
-            fflush(stdout);
-        }
-
-        close(s);
-        _exit(0);
-    }
-
-    while (1) {
-        printf("Client> ");
-        fflush(stdout);
-
-        if (!fgets(b, SIZE, stdin))
-            break;
-
-        b[strcspn(b, "\n")] = '\0';
-
-        if (b[0] == '\0')
-            continue;
-
-        if (sendto(s, b, strlen(b), 0,
-                   (struct sockaddr *)&addr, len) < 0) {
-            perror("sendto");
-            break;
-        }
-
-        if (strcmp(b, "EXIT") == 0) {
-            printf("You left the chat.\n");
-            kill(pid, SIGTERM);
-            break;
+            printf("\nServer: %s\n", msg);
         }
     }
 
+    while (1)
+    {
+        printf("You: ");
+        if (!fgets(msg, sizeof(msg), stdin)) break;
+
+        msg[strcspn(msg, "\n")] = '\0';
+
+        sendto(s, msg, strlen(msg), 0,
+               (struct sockaddr *)&server, len);
+
+        if (strcmp(msg, "QUIT") == 0) break;
+    }
+
+    kill(r, SIGTERM);
     close(s);
+    wait(NULL);
     return 0;
 }

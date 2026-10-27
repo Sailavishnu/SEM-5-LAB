@@ -12,7 +12,6 @@ int main()
     int shmid;
     int *buf;
 
-    // Create shared memory
     shmid = shmget(4777, sizeof(int) * (SIZE + 2), IPC_CREAT | 0666);
 
     if (shmid == -1)
@@ -24,7 +23,6 @@ int main()
 
     printf("Shared memory created successfully.\n");
 
-    // Attach shared memory
     buf = (int *)shmat(shmid, NULL, 0);
 
     if (buf == (void *)-1)
@@ -36,9 +34,8 @@ int main()
 
     printf("Shared memory attached successfully.\n");
 
-    // Initialize
-    buf[10] = 0;   // in
-    buf[11] = 0;   // out
+    buf[10] = 0; 
+    buf[11] = 0;
 
     printf("\n========== PRODUCER ==========\n");
 

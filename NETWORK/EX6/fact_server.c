@@ -7,14 +7,14 @@
 #include <sys/socket.h>
 
 int main() {
-    int server_fd, client_fd, n, num, i;
+    int server, client, n, num, i;
     unsigned long long fact = 1;
     char msg[1024], response[1024];
     struct sockaddr_in server, client;
     socklen_t len = sizeof(client);
 
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd < 0) {
+    server = socket(AF_INET, SOCK_STREAM, 0);
+    if (server < 0) {
         perror("Socket error");
         return 1;
     }
@@ -24,33 +24,33 @@ int main() {
     server.sin_port = htons(8080);
     server.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(server_fd, (struct sockaddr *)&server,
+    if (bind(server, (struct sockaddr *)&server,
              sizeof(server)) < 0) {
         perror("Bind error");
-        close(server_fd);
+        close(server);
         return 1;
     }
 
-    if (listen(server_fd, 5) < 0) {
+    if (listen(server, 5) < 0) {
         perror("Listen error");
-        close(server_fd);
+        close(server);
         return 1;
     }
 
     printf("Server waiting for client...\n");
 
-    client_fd = accept(server_fd, (struct sockaddr *)&client, &len);
-    if (client_fd < 0) {
+    client = accept(server, (struct sockaddr *)&client, &len);
+    if (client < 0) {
         perror("Accept error");
-        close(server_fd);
+        close(server);
         return 1;
     }
 
-    n = recv(client_fd, msg, sizeof(msg) - 1, 0);
+    n = recv(client, msg, sizeof(msg) - 1, 0);
     if (n <= 0){
         perror("Receive error");
-        close(client_fd);
-        close(server_fd);
+        close(client);
+        close(server);
         return 1;
     }
 
@@ -75,10 +75,10 @@ int main() {
 
     printf("%s\n", response);
 
-    if (send(client_fd, response, strlen(response), 0) < 0)
+    if (send(client, response, strlen(response), 0) < 0)
         perror("Send error");
 
-    close(client_fd);
-    close(server_fd);
+    close(client);
+    close(server);
     return 0;
 }

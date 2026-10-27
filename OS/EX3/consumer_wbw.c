@@ -1,55 +1,52 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <unistd.h>
 
+#define SIZE 10
+#define KEY 2461
+#define SHM_SIZE (sizeof(int) * 20)
+
 int main()
 {
-   int shmid, num, *buf;
-   int size = 10;
+    int shmid, num, *buf;
 
-   printf("=== CONSUMER STARTED ===\n");
-   printf("Waiting for producer to create shared memory...\n");
+    printf("Consumer started. Waiting for producer...\n");
 
-   // Attach to shared memory (size = 0 for existing segment)
-   while ((shmid = shmget(2461, 0, 0666)) == -1)
-   {
-      printf(".");
-      fflush(stdout);
-      sleep(1);
-   }
+    // Wait until producer creates shared memory
+    while ((shmid = shmget(KEY, SHM_SIZE, 0666)) == -1) {
+        sleep(1);
+    }
 
-   printf("\nShared memory attached!\n\n");
+    buf = (int *)shmat(shmid, NULL, 0);
 
-   buf = (int *)shmat(shmid, NULL, 0);
+    if (buf == (void *)-1) {
+        perror("shmat");
+        return 1;
+    }
 
-   printf("Waiting for data...\n\n");
+    // Wait until producer finishes initialization
+    while (buf[13] != 1)
+        sleep(1);
 
-   while (1)
-   {
-      // Case 2: Wait for data (production count > consumption count)
-      while (buf[14] == buf[15])
-      {
-         if (buf[12] == 0)  // Producer stopped AND no more data
-         {
-            printf("\n[CONSUMER DONE - Producer finished]\n");
-            goto cleanup;
-         }
-         // Otherwise just wait, don't print spam
-      }
+    printf("Shared memory ready. Consuming data...\n");
 
-      // Case 3: Consume data
-      num = buf[buf[11]];
-      buf[11] = (buf[11] + 1) % size;
-      buf[15]++;  // Signal: increment consumption count
+    while (1) {
+        // Busy wait while buffer is empty
+        while (buf[10] == buf[11]) {
+            if (buf[12] == 0) {
+                printf("Producer finished. Consumer stopping.\n");
 
-      printf("  ← Consumed: %d (count=%d)\n", num, buf[15]);
-   }
+                shmdt(buf);
+                shmctl(shmid, IPC_RMID, NULL);
+                return 0;
+            }
+        }
 
-cleanup:
-   shmdt(buf);
-   shmctl(shmid, IPC_RMID, NULL);
-   return 0;
+        num = buf[buf[11]];
+        buf[11] = (buf[11] + 1) % SIZE;
+
+        printf("Consumed: %d\n", num);
+    }
 }

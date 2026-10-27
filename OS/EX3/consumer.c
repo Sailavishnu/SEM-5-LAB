@@ -12,7 +12,6 @@ int main()
     int shmid;
     int *buf;
 
-    // Access existing shared memory
     shmid = shmget(4777, sizeof(int) * (SIZE + 2), 0666);
 
     if (shmid == -1)
@@ -25,7 +24,6 @@ int main()
 
     printf("Shared memory located successfully.\n");
 
-    // Attach shared memory
     buf = (int *)shmat(shmid, NULL, 0);
 
     if (buf == (void *)-1)
