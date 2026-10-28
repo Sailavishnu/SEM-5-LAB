@@ -1,134 +1,65 @@
 %{
 #include <stdio.h>
-#include <stdlib.h>
-int last_was_operand = 0;
 %}
 
-%%
+%option noyywrap
 
-"for"|"if"|"else"|"while"|"do"|"class"|"return"|"void"|"static"|"public"|"private" {
-    printf("<     KEYWORD               ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
+%s OP
 
-"int"|"float"|"double"|"char"|"boolean"|"String" {
-    printf("<     DATATYPE              ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-"true"|"false" {
-    printf("<     BOOLEAN               ,   %s     >\n", yytext);
-    last_was_operand = 1;
-}
-
-"++" {
-    if (last_was_operand)
-        printf("<     POST_INCREMENT        ,   %s     >\n", yytext);
-    else
-        printf("<     PRE_INCREMENT         ,   %s     >\n", yytext);
-    last_was_operand = 1;
-}
-
-"--" {
-    if (last_was_operand)
-        printf("<     POST_DECREMENT        ,   %s     >\n", yytext);
-    else
-        printf("<     PRE_DECREMENT         ,   %s     >\n", yytext);
-    last_was_operand = 1;
-}
-
-"=="|"!="|"<="|">=" {
-    printf("<     RELATIONAL_OPERATOR   ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-"<"|">" {
-    printf("<     RELATIONAL_OPERATOR   ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-"&&"|"||" {
-    printf("<     LOGICAL_OPERATOR      ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-"!" {
-    printf("<     LOGICAL_OPERATOR      ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-"=" {
-    printf("<     ASSIGNMENT_OPERATOR   ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-"+="|"-="|"*="|"/="|"%=" {
-    printf("<     COMPOUND_ASSIGNMENT   ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-"+" {
-    if (last_was_operand)
-        printf("<     BINARY_PLUS           ,   %s     >\n", yytext);
-    else
-        printf("<     UNARY_PLUS            ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-"-" {
-    if (last_was_operand)
-        printf("<     BINARY_MINUS          ,   %s     >\n", yytext);
-    else
-        printf("<     UNARY_MINUS           ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-"*"|"/"|"%" {
-    printf("<     ARITHMETIC_OPERATOR   ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-[a-zA-Z_][a-zA-Z0-9_]* {
-    printf("<     IDENTIFIER            ,   %s     >\n", yytext);
-    last_was_operand = 1;
-}
-
-[0-9]+(\.[0-9]+)? {
-    printf("<     NUMBER                ,   %s     >\n", yytext);
-    last_was_operand = 1;
-}
-
-"("|"{"|"}"|"["|";"|","|"." {
-    printf("<     PUNCTUATION           ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
-
-")"|"]" {
-    printf("<     PUNCTUATION           ,   %s     >\n", yytext);
-    last_was_operand = 1;
-}
-
-[ \t\n]+ { }
-
-. {
-    printf("<     UNKNOWN               ,   %s     >\n", yytext);
-    last_was_operand = 0;
-}
+DIGIT   [0-9]
+NUMBER  {DIGIT}+(\.{DIGIT}+)?
+ID      [a-zA-Z_][a-zA-Z0-9_]*
 
 %%
 
-int yywrap() {
-    return 1;
-}
+[ \t\n\r]+          { }
 
-int main() {
-    yyin = fopen("input.txt", "r");
-    if (!yyin) {
-        printf("Error: Could not open input.txt!\n");
-        return 1;
-    }
-    printf("Reading and tokenizing input.txt...\n\n");
+"for"                { BEGIN(INITIAL); printf("< keyword : for >\n"); }
+"int"                { BEGIN(INITIAL); printf("< keyword : int >\n"); }
+"double"             { BEGIN(INITIAL); printf("< keyword : double >\n"); }
+"boolean"            { BEGIN(INITIAL); printf("< keyword : boolean >\n"); }
+
+"true"|"false"       { BEGIN(OP); printf("< boolean : %s >\n", yytext); }
+
+{NUMBER}             { BEGIN(OP); printf("< number : %s >\n", yytext); }
+{ID}                 { BEGIN(OP); printf("< identifier : %s >\n", yytext); }
+
+<INITIAL>"++"        { printf("< pre-increment : ++ >\n"); }
+<INITIAL>"--"        { printf("< pre-decrement : -- >\n"); }
+<INITIAL>"+"         { printf("< unary plus : + >\n"); }
+<INITIAL>"-"         { printf("< unary minus : - >\n"); }
+
+<OP>"++"             { BEGIN(INITIAL); printf("< post-increment : ++ >\n"); }
+<OP>"--"             { BEGIN(INITIAL); printf("< post-decrement : -- >\n"); }
+<OP>"+"              { BEGIN(INITIAL); printf("< binary plus : + >\n"); }
+<OP>"-"              { BEGIN(INITIAL); printf("< binary minus : - >\n"); }
+
+"*"                  { BEGIN(INITIAL); printf("< multiplication : * >\n"); }
+"/"                  { BEGIN(INITIAL); printf("< division : / >\n"); }
+
+"<="|">="|"=="|"!="|"<"|">" {
+                       BEGIN(INITIAL);
+                       printf("< relational operator : %s >\n", yytext);
+                     }
+
+"&&"|"||"            { BEGIN(INITIAL); printf("< logical operator : %s >\n", yytext); }
+"!"                  { BEGIN(INITIAL); printf("< logical NOT : ! >\n"); }
+"="                  { BEGIN(INITIAL); printf("< assignment : = >\n"); }
+
+"("                  { BEGIN(INITIAL); printf("< left parenthesis : ( >\n"); }
+")"                  { BEGIN(OP); printf("< right parenthesis : ) >\n"); }
+"{"                  { BEGIN(INITIAL); printf("< left brace : { >\n"); }
+"}"                  { BEGIN(INITIAL); printf("< right brace : } >\n"); }
+";"                  { BEGIN(INITIAL); printf("< semicolon : ; >\n"); }
+
+.                    { printf("< unknown : %s >\n", yytext); }
+
+%%
+
+int main(void)
+{
+    printf("Enter Java for loop:\n");
+    BEGIN(INITIAL);
     yylex();
-    fclose(yyin);
     return 0;
 }

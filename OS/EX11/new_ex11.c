@@ -62,7 +62,6 @@ void SCAN(int r[], int n, int h, int size, int dir)
     for (i = 0; i < n; i++)
         a[i] = r[i];
     sort(a, n);
-
     if (dir)
     {
         for (i = 0; i < n; i++)
