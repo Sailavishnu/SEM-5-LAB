@@ -1,0 +1,11 @@
+Link Text: Example Site
+URL: https://example.com
+
+Link Text: Home
+URL: #
+Note: Hyperlink points to the current page.
+
+Error: Empty href attribute.
+
+Error: Anchor tag found without href attribute.
+

@@ -1,0 +1,197 @@
+[24bcs058@mepcolinux ex5]$cat producer.c
+#include "semaphore.h"
+#include <string.h>
+
+int main()
+{
+    int shmid, sid, *buf;
+    int num;
+    int created = 0;
+    char choice = 'y';
+    union semaphore snum;
+    unsigned short a[3];
+
+    printf("=== PRODUCER STARTED ===\n\n");
+
+    shmid = shmget(SHM_KEY, sizeof(int) * 12, IPC_CREAT | IPC_EXCL | 0666);
+
+    if (shmid == -1)
+    {
+        shmid = shmget(SHM_KEY, sizeof(int) * 12, 0666);
+    }
+    else
+    {
+        created = 1;
+    }
+
+    if (shmid == -1)
+    {
+        perror("shmget");
+        exit(1);
+    }
+
+    buf = (int *)shmat(shmid, NULL, 0);
+    if (buf == (void *)-1)
+    {
+        perror("shmat");
+        exit(1);
+    }
+
+    sid = semget(SEM_KEY, 3, IPC_CREAT | IPC_EXCL | 0666);
+
+    if (sid == -1)
+    {
+        sid = semget(SEM_KEY, 3, 0666);
+    }
+
+    if (sid == -1)
+    {
+        perror("semget");
+        exit(1);
+    }
+
+    if (created == 1)
+    {
+        memset(buf, 0, sizeof(int) * 12);
+        buf[WRITE_PTR] = 0;
+        buf[READ_PTR] = 0;
+        a[mutex] = 1;
+        a[full] = 0;
+        a[empty] = SIZE;
+        snum.array = a;
+        semctl(sid, 0, SETALL, snum);
+    }
+
+    while (choice == 'y' || choice == 'Y')
+    {
+        wait_sem(sid, empty);
+        printf("Enter Data: ");
+        fflush(stdout);
+        scanf("%d", &num);
+
+        wait_sem(sid, mutex);
+        buf[buf[WRITE_PTR]] = num;
+        printf("Produced Data: %d\n", num);
+        buf[WRITE_PTR] = (buf[WRITE_PTR] + 1) % SIZE;
+        signal_sem(sid, mutex);
+        signal_sem(sid, full);
+
+        printf("Do you want to continue (y/n): ");
+        scanf(" %c", &choice);
+        printf("\n");
+    }
+
+    printf("[PRODUCER STOPPED]\n");
+    shmdt(buf);
+    return 0;
+}
+
+[24bcs058@mepcolinux ex5]$cat consumer.c
+#include "semaphore.h"
+
+int main()
+{
+    int shmid, sid, *buf;
+    int num;
+    char choice = 'y';
+
+    printf("=== CONSUMER STARTED ===\n\n");
+    printf("Waiting for Producer to start...\n");
+
+    while ((shmid = shmget(SHM_KEY, sizeof(int) * 12, 0666)) == -1)
+    {
+        sleep(1);
+    }
+
+    buf = (int *)shmat(shmid, NULL, 0);
+    if (buf == (void *)-1)
+    {
+        perror("shmat");
+        exit(1);
+    }
+
+    while ((sid = semget(SEM_KEY, 3, 0666)) == -1)
+    {
+        sleep(1);
+    }
+
+    printf("Connected to Producer! Waiting for data...\n\n");
+
+    while (choice == 'y' || choice == 'Y')
+    {
+        wait_sem(sid, full);
+        wait_sem(sid, mutex);
+
+        num = buf[buf[READ_PTR]];
+        printf("Consumed Data: %d\n", num);
+        buf[READ_PTR] = (buf[READ_PTR] + 1) % SIZE;
+
+        signal_sem(sid, mutex);
+        signal_sem(sid, empty);
+
+        printf("Do you want to continue (y/n): ");
+        scanf(" %c", &choice);
+        printf("\n");
+    }
+
+    printf("[CONSUMER STOPPED]\n");
+    shmdt(buf);
+    return 0;
+}
+
+[24bcs058@mepcolinux ex5]$cat imp.c
+#include "semaphore.h"
+
+void wait_sem(int sid, int sno)
+{
+    struct sembuf s;
+    s.sem_num = sno;
+    s.sem_op = -1;
+    s.sem_flg = SEM_UNDO;
+    semop(sid, &s, 1);
+}
+
+void signal_sem(int sid, int sno)
+{
+    struct sembuf s;
+    s.sem_num = sno;
+    s.sem_op = 1;
+    s.sem_flg = SEM_UNDO;
+    semop(sid, &s, 1);
+}
+
+[24bcs058@mepcolinux ex5]$cat semaphore.h
+#ifndef SEMAPHORE_H
+#define SEMAPHORE_H
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <unistd.h>
+
+#define SIZE 10
+
+#define SHM_KEY 240581
+#define SEM_KEY 240582
+
+#define mutex 0
+#define full 1
+#define empty 2
+
+#define WRITE_PTR 10
+#define READ_PTR 11
+
+union semaphore
+{
+    int val;
+    struct semid_ds *buf;
+    unsigned short *array;
+};
+
+void wait_sem(int sid, int sno);
+void signal_sem(int sid, int sno);
+
+#endif
