@@ -1,3 +1,0 @@
-This was compiler lab.
-My age was 30.
-Ram was good.

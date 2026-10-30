@@ -44,3 +44,7 @@ out
 # Windows
 Thumbs.db
 Desktop.ini
+
+
+# Ignore files without extensions
+[^.]*
