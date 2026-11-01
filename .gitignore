@@ -1,15 +1,23 @@
 # =========================
-# Executables
+# Build output rule
 # =========================
-*.exe
-*.out
-
-# Files named "out" (without extension)
-out
-
-# Object files
-*.o
-*.obj
+# For a build/output folder, the correct rule is:
+# ignore files with no extension, while keeping files that have an extension.
+# Example pattern to place in that folder's .gitignore:
+#   *
+#   !*/
+#   !*.c
+#   !*.h
+#   !*.md
+#   !*.txt
+#   !*.y
+#   !*.l
+#   !*.exe
+#   !*.out
+#   !Makefile
+#
+# This keeps files like hello.c, bankers.c, exp.md, bankers.exe, etc.
+# and ignores extensionless outputs like prod, cons, hello, prodw, etc.
 
 # Static and dynamic libraries
 *.a

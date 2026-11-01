@@ -12,6 +12,98 @@ Included by: `main.c`, `utils.c`, `parity.c`, `crc.c`, `checksum.c`.
 
 ---
 
+#include <stdio.h>
+#define MAX 10
+#define INF 999
+
+// Function to find DVR and print routing tables
+void findDVR(int n, int cost[MAX][MAX]) {
+    int dist[MAX][MAX], nextHop[MAX][MAX];
+    int i, j, k, changed;
+
+    // Initialize distance and next hop
+    for (i = 0; i < n; i++)
+        for (j = 0; j < n; j++) {
+
+            if (i == j) {
+                dist[i][j] = 0;
+                nextHop[i][j] = -1;
+            }
+            else {
+                dist[i][j] = cost[i][j];
+
+                if (cost[i][j] != INF)
+                    nextHop[i][j] = j;
+                else
+                    nextHop[i][j] = -1;
+            }
+        }
+
+    // Find shortest paths
+    do {
+        changed = 0;
+
+        for (i = 0; i < n; i++)
+            for (j = 0; j < n; j++)
+                for (k = 0; k < n; k++) {
+
+                    if (dist[i][k] != INF &&
+                        dist[k][j] != INF &&
+                        dist[i][k] + dist[k][j] < dist[i][j]) {
+
+                        dist[i][j] = dist[i][k] + dist[k][j];
+                        nextHop[i][j] = nextHop[i][k];
+                        changed = 1;
+                    }
+                }
+
+    } while (changed);
+
+    // Print routing tables
+    printf("\nDISTANCE VECTOR ROUTING TABLE\n");
+
+    for (i = 0; i < n; i++) {
+        printf("\nRouter %c\n", 'A' + i);
+        printf("Destination\tNext Hop\tCost\n");
+
+        for (j = 0; j < n; j++) {
+            printf("%c\t\t", 'A' + j);
+
+            if (nextHop[i][j] == -1)
+                printf("-\t\t");
+            else
+                printf("%c\t\t", 'A' + nextHop[i][j]);
+
+            if (dist[i][j] == INF)
+                printf("INF\n");
+            else
+                printf("%d\n", dist[i][j]);
+        }
+    }
+}
+
+int main() {
+    int n, cost[MAX][MAX];
+    int i, j;
+
+    printf("Enter number of routers: ");
+    scanf("%d", &n);
+
+    printf("Enter cost matrix (999 for no link):\n");
+
+    for (i = 0; i < n; i++)
+        for (j = 0; j < n; j++) {
+            scanf("%d", &cost[i][j]);
+
+            if (i == j)
+                cost[i][j] = 0;
+        }
+
+    findDVR(n, cost);
+
+    return 0;
+}
+
 ## Test cases
 
 | # | Type | Situation | Result | Why |

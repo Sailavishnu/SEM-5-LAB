@@ -1,132 +1,130 @@
-
 #include <stdio.h>
-#define P 10
-#define R 10
+#define MAX 10
 
-struct Bankers {
-    int p, r, alloc[P][R], max[P][R], need[P][R], avail[R];
-};
+void calculateNeed(int p, int r, int maxm[][MAX], int alloc[][MAX], int need[][MAX])
+{
+    for (int i = 0; i < p; i++)
+        for (int j = 0; j < r; j++)
+            need[i][j] = maxm[i][j] - alloc[i][j];
+}
 
-int safety(struct Bankers *b, int seq[]) {
-    int work[R], finish[P] = {0}, count = 0;
+int checkSafety(int p, int r, int alloc[][MAX], int need[][MAX], int avail[], int seq[])
+{
+    int work[MAX], finish[MAX] = {0}, count = 0, found = 1;
 
-    for (int j = 0; j < b->r; j++)
-        work[j] = b->avail[j];
+    for (int j = 0; j < r; j++)
+        work[j] = avail[j];
 
-    while (count < b->p) {
-        int found = 0;
+    while (found)
+    {
+        found = 0;
+        for (int i = 0; i < p; i++)
+        {
+            int ok = !finish[i];
+            for (int j = 0; j < r; j++)
+                if (need[i][j] > work[j])
+                    ok = 0;
 
-        for (int i = 0; i < b->p; i++) {
-            if (finish[i]) continue;
-
-            int j;
-            for (j = 0; j < b->r; j++)
-                if (b->need[i][j] > work[j]) break;
-
-            if (j == b->r) {
-                for (j = 0; j < b->r; j++)
-                    work[j] += b->alloc[i][j];
-
+            if (ok)
+            {
+                for (int j = 0; j < r; j++)
+                    work[j] += alloc[i][j];
                 seq[count++] = i;
                 finish[i] = found = 1;
             }
         }
-
-        if (!found) return 0;
     }
+
+    if (count < p)
+    {
+        printf("UNSAFE (deadlock possible)\n");
+        return 0;
+    }
+    printf("SAFE: ");
+    for (int i = 0; i < count; i++)
+        printf("P%d ", seq[i]);
+    printf("\n");
     return 1;
 }
 
-void request(struct Bankers *b) {
-    int pid, req[R], seq[P];
+void requestResources(int p, int r, int pid, int req[], int alloc[][MAX], int need[][MAX], int avail[])
+{
+    int seq[MAX];
 
-    printf("Enter process number: ");
-    scanf("%d", &pid);
-
-    if (pid < 0 || pid >= b->p) {
-        printf("Invalid process number\n");
-        return;
-    }
-
-    printf("Enter request: ");
-    for (int j = 0; j < b->r; j++)
-        scanf("%d", &req[j]);
-
-    for (int j = 0; j < b->r; j++)
-        if (req[j] > b->need[pid][j]) {
-            printf("Request exceeds Need\n");
+    for (int j = 0; j < r; j++)
+        if (req[j] > need[pid][j])
+        {
+            printf("Denied: exceeds P%d's Need.\n", pid);
             return;
         }
 
-    for (int j = 0; j < b->r; j++)
-        if (req[j] > b->avail[j]) {
-            printf("Resources unavailable; process must wait\n");
+    for (int j = 0; j < r; j++)
+        if (req[j] > avail[j])
+        {
+            printf("Denied: not enough Available. P%d must wait.\n", pid);
             return;
         }
 
-    for (int j = 0; j < b->r; j++) {
-        b->avail[j] -= req[j];
-        b->alloc[pid][j] += req[j];
-        b->need[pid][j] -= req[j];
+    for (int j = 0; j < r; j++)
+    {
+        avail[j] -= req[j];
+        alloc[pid][j] += req[j];
+        need[pid][j] -= req[j];
     }
 
-    if (safety(b, seq)) {
-        printf("Request granted. Safe sequence: ");
-        for (int i = 0; i < b->p; i++)
-            printf("P%d%s", seq[i], i == b->p - 1 ? "\n" : " -> ");
-    } else {
-        for (int j = 0; j < b->r; j++) {
-            b->avail[j] += req[j];
-            b->alloc[pid][j] -= req[j];
-            b->need[pid][j] += req[j];
+    if (checkSafety(p, r, alloc, need, avail, seq))
+        printf("Granted.\n");
+    else
+    {
+        printf("Rolled back. P%d must wait.\n", pid);
+        for (int j = 0; j < r; j++)
+        {
+            avail[j] += req[j];
+            alloc[pid][j] -= req[j];
+            need[pid][j] += req[j];
         }
-        printf("Request denied. Unsafe state; rollback done.\n");
     }
 }
 
-int main() {
-    struct Bankers b;
-    int seq[P], i, j;
-    char ch;
+int main(void)
+{
+    int p, r, pid;
+    int alloc[MAX][MAX], maxm[MAX][MAX], need[MAX][MAX];
+    int avail[MAX], req[MAX], seq[MAX];
+    char choice;
 
-    printf("Enter processes and resources: ");
-    scanf("%d%d", &b.p, &b.r);
+    printf("Enter number of processes and resource types: ");
+    scanf("%d %d", &p, &r);
 
     printf("Enter Allocation Matrix:\n");
-    for (i = 0; i < b.p; i++)
-        for (j = 0; j < b.r; j++)
-            scanf("%d", &b.alloc[i][j]);
+    for (int i = 0; i < p; i++)
+        for (int j = 0; j < r; j++)
+            scanf("%d", &alloc[i][j]);
 
     printf("Enter Max Matrix:\n");
-    for (i = 0; i < b.p; i++)
-        for (j = 0; j < b.r; j++) {
-            scanf("%d", &b.max[i][j]);
-            b.need[i][j] = b.max[i][j] - b.alloc[i][j];
-        }
+    for (int i = 0; i < p; i++)
+        for (int j = 0; j < r; j++)
+            scanf("%d", &maxm[i][j]);
 
     printf("Enter Available Resources:\n");
-    for (j = 0; j < b.r; j++)
-        scanf("%d", &b.avail[j]);
+    for (int j = 0; j < r; j++)
+        scanf("%d", &avail[j]);
 
-    printf("Need Matrix:\n");
-    for (i = 0; i < b.p; i++) {
-        for (j = 0; j < b.r; j++)
-            printf("%d ", b.need[i][j]);
-        printf("\n");
-    }
+    calculateNeed(p, r, maxm, alloc, need);
+    checkSafety(p, r, alloc, need, avail, seq);
 
-    if (safety(&b, seq)) {
-        printf("System is SAFE\nSequence: ");
-        for (i = 0; i < b.p; i++)
-            printf("P%d%s", seq[i], i == b.p - 1 ? "\n" : " -> ");
-    } else
-        printf("System is UNSAFE\n");
+    do
+    {
+        printf("\nProcess no. and request for each resource: ");
+        scanf("%d", &pid);
+        for (int j = 0; j < r; j++)
+            scanf("%d", &req[j]);
 
-    do {
-        request(&b);
+        requestResources(p, r, pid, req, alloc, need, avail);
+
         printf("Another request? (y/n): ");
-        scanf(" %c", &ch);
-    } while (ch == 'y' || ch == 'Y');
+        scanf(" %c", &choice);
+    } while (choice == 'y' || choice == 'Y');
 
     return 0;
 }
