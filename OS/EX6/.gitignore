@@ -1,0 +1,16 @@
+﻿*
+!*/
+!*.c
+!*.h
+!*.md
+!*.txt
+!*.y
+!*.l
+!Makefile
+!.gitignore
+
+# Generated binaries / outputs
+*.exe
+*.out
+*.o
+*.obj
