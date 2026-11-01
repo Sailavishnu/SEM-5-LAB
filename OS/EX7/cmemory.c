@@ -3,44 +3,36 @@
 
 typedef struct
 {
-    int id;
-    int size;
-    int allocatedTo;   // process id allocated to this hole, -1 if free
-    int fragmentation; // internal fragmentation left in this hole after allocation
+    int id, size;
+    int allocatedTo;    /* process id in this hole, -1 = free */
+    int fragmentation;  /* hole size - process size */
 } MemoryHole;
 
 typedef struct
 {
-    int id;
-    int size;
-    int allocatedHole; // hole id this process is allocated to, -1 if not allocated
+    int id, size;
+    int allocatedHole;  /* hole id for this process, -1 = none */
 } Process;
 
-MemoryHole holes[MAX];
-Process procs[MAX];
-int n, m; // n = number of holes, m = number of processes
-
-void reset()
+void reset(int n, int m, MemoryHole holes[], Process procs[])
 {
-    for (int i = 0; i < n; i++)
+    for (int j = 0; j < n; j++)
     {
-        holes[i].allocatedTo = -1;
-        holes[i].fragmentation = 0;
+        holes[j].allocatedTo = -1;
+        holes[j].fragmentation = 0;
     }
     for (int i = 0; i < m; i++)
-    {
         procs[i].allocatedHole = -1;
-    }
 }
 
-/* flag = 1 -> ascending order (Best Fit), flag = 0 -> descending order (Worst Fit) */
-void sortHoles(int idx[], int flag)
+/* ascending = 1 -> Best Fit order, ascending = 0 -> Worst Fit order */
+void sortHoles(int n, MemoryHole holes[], int idx[], int ascending)
 {
     for (int i = 0; i < n - 1; i++)
         for (int j = 0; j < n - i - 1; j++)
         {
             int a = holes[idx[j]].size, b = holes[idx[j + 1]].size;
-            if ((flag && a > b) || (!flag && a < b))
+            if ((ascending && a > b) || (!ascending && a < b))
             {
                 int t = idx[j];
                 idx[j] = idx[j + 1];
@@ -49,9 +41,9 @@ void sortHoles(int idx[], int flag)
         }
 }
 
-void firstFit()
+void firstFit(int n, int m, MemoryHole holes[], Process procs[])
 {
-    reset();
+    reset(n, m, holes, procs);
     for (int i = 0; i < m; i++)
         for (int j = 0; j < n; j++)
             if (holes[j].allocatedTo == -1 && holes[j].size >= procs[i].size)
@@ -63,13 +55,15 @@ void firstFit()
             }
 }
 
-void fitBySize(int flag)
-{ /* flag=1 Best Fit, flag=0 Worst Fit */
-    reset();
+void fitBySize(int n, int m, MemoryHole holes[], Process procs[], int ascending)
+{
     int idx[MAX];
-    for (int i = 0; i < n; i++)
-        idx[i] = i;
-    sortHoles(idx, flag);
+
+    reset(n, m, holes, procs);
+    for (int j = 0; j < n; j++)
+        idx[j] = j;
+    sortHoles(n, holes, idx, ascending);
+
     for (int i = 0; i < m; i++)
         for (int k = 0; k < n; k++)
         {
@@ -84,54 +78,41 @@ void fitBySize(int flag)
         }
 }
 
-void showResult(const char *name)
+void printResult(int n, int m, MemoryHole holes[], Process procs[])
 {
-    int intFrag = 0, extFrag = 0;
-    printf("\n-- %s --\n", name);
-    for (int i = 0; i < m; i++)
-    {
-        if (procs[i].allocatedHole == -1)
-            printf("Process %d -> Not Allocated\n", procs[i].id);
-        else
-        {
-            /* find the hole struct that matches allocatedHole id */
-            for (int j = 0; j < n; j++)
-            {
-                if (holes[j].id == procs[i].allocatedHole)
-                {
-                    printf("Process %d -> H%d (frag=%d)\n",
-                           procs[i].id, holes[j].id, holes[j].fragmentation);
-                    intFrag += holes[j].fragmentation;
-                    break;
-                }
-            }
-        }
-    }
+    int internal = 0, external = 0;
 
-    printf("Unused: ");
-    int any = 0;
+    for (int i = 0; i < m; i++)
+        if (procs[i].allocatedHole == -1)
+            printf("P%d -> Not allocated\n", procs[i].id);
+        else
+            printf("P%d -> H%d\n", procs[i].id, procs[i].allocatedHole);
+
+    printf("Unused holes: ");
     for (int j = 0; j < n; j++)
         if (holes[j].allocatedTo == -1)
         {
             printf("H%d ", holes[j].id);
-            extFrag += holes[j].size;
-            any = 1;
+            external += holes[j].size;
         }
-    if (!any)
-        printf("None");
-
-    printf("\nInternal Frag = %d | External Frag = %d\n", intFrag, extFrag);
+        else
+            internal += holes[j].fragmentation;
+    printf("\nInternal = %d | External = %d\n", internal, external);
 }
 
-int main()
+int main(void)
 {
-    printf("Enter number of memory holes: ");
+    int n, m, choice;
+    MemoryHole holes[MAX];
+    Process procs[MAX];
+
+    printf("Enter number of holes: ");
     scanf("%d", &n);
-    for (int i = 0; i < n; i++)
+    for (int j = 0; j < n; j++)
     {
-        holes[i].id = i + 1;
-        printf("Size of H%d: ", i + 1);
-        scanf("%d", &holes[i].size);
+        holes[j].id = j + 1;
+        printf("Size of H%d: ", j + 1);
+        scanf("%d", &holes[j].size);
     }
 
     printf("Enter number of processes: ");
@@ -139,30 +120,25 @@ int main()
     for (int i = 0; i < m; i++)
     {
         procs[i].id = i + 1;
-        printf("Size of Process %d: ", i + 1);
+        printf("Size of P%d: ", i + 1);
         scanf("%d", &procs[i].size);
     }
 
-    int choice;
     do
     {
-        printf("\n1.First Fit \n2.Best Fit \n3.Worst Fit \n4.Exit\nChoice: ");
+        printf("\n1.First Fit  2.Best Fit  3.Worst Fit  4.Exit\nChoice: ");
         scanf("%d", &choice);
+
         if (choice == 1)
-        {
-            firstFit();
-            showResult("First Fit");
-        }
+            firstFit(n, m, holes, procs);
         else if (choice == 2)
-        {
-            fitBySize(1);
-            showResult("Best Fit");
-        }
+            fitBySize(n, m, holes, procs, 1);
         else if (choice == 3)
-        {
-            fitBySize(0);
-            showResult("Worst Fit");
-        }
+            fitBySize(n, m, holes, procs, 0);
+        else
+            continue;
+
+        printResult(n, m, holes, procs);
     } while (choice != 4);
 
     return 0;

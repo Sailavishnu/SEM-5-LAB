@@ -1,17 +1,11 @@
 #include <stdio.h>
 #define MAX 10
 
-void calculateNeed(int p, int r, int maxm[][MAX], int alloc[][MAX], int need[][MAX])
+int checkSafety(int p, int r, int alloc[][MAX], int need[][MAX], int avail[], int seq[], int *count)
 {
-    for (int i = 0; i < p; i++)
-        for (int j = 0; j < r; j++)
-            need[i][j] = maxm[i][j] - alloc[i][j];
-}
+    int work[MAX], finish[MAX] = {0}, found = 1;
 
-int checkSafety(int p, int r, int alloc[][MAX], int need[][MAX], int avail[], int seq[])
-{
-    int work[MAX], finish[MAX] = {0}, count = 0, found = 1;
-
+    *count = 0;
     for (int j = 0; j < r; j++)
         work[j] = avail[j];
 
@@ -29,32 +23,36 @@ int checkSafety(int p, int r, int alloc[][MAX], int need[][MAX], int avail[], in
             {
                 for (int j = 0; j < r; j++)
                     work[j] += alloc[i][j];
-                seq[count++] = i;
+                seq[(*count)++] = i;
                 finish[i] = found = 1;
             }
         }
     }
 
-    if (count < p)
-    {
-        printf("UNSAFE (deadlock possible)\n");
-        return 0;
-    }
-    printf("SAFE: ");
+    return *count == p;
+}
+
+void printSequence(int seq[] , int count)
+{
     for (int i = 0; i < count; i++)
         printf("P%d ", seq[i]);
     printf("\n");
-    return 1;
 }
 
-void requestResources(int p, int r, int pid, int req[], int alloc[][MAX], int need[][MAX], int avail[])
+void requestResources(int p, int r,int alloc[][MAX], int need[][MAX], int avail[],int pid, int req[])
 {
-    int seq[MAX];
+    int seq[MAX], count;
+
+    if (pid < 0 || pid >= p)
+    {
+        printf("Invalid process number. Use 0 to %d.\n", p - 1);
+        return;
+    }
 
     for (int j = 0; j < r; j++)
         if (req[j] > need[pid][j])
         {
-            printf("Denied: exceeds P%d's Need.\n", pid);
+            printf("Denied: request exceeds P%d's Need.\n", pid);
             return;
         }
 
@@ -72,23 +70,26 @@ void requestResources(int p, int r, int pid, int req[], int alloc[][MAX], int ne
         need[pid][j] -= req[j];
     }
 
-    if (checkSafety(p, r, alloc, need, avail, seq))
-        printf("Granted.\n");
+    if (checkSafety(p, r, alloc, need, avail, seq, &count))
+    {
+        printf("Request GRANTED. New safe sequence: ");
+        printSequence(seq, count);
+    }
     else
     {
-        printf("Rolled back. P%d must wait.\n", pid);
         for (int j = 0; j < r; j++)
         {
             avail[j] += req[j];
             alloc[pid][j] -= req[j];
             need[pid][j] += req[j];
         }
+        printf("Request NOT granted: resulting state is unsafe. P%d must wait.\n", pid);
     }
 }
 
 int main(void)
 {
-    int p, r, pid;
+    int p, r, pid, count;
     int alloc[MAX][MAX], maxm[MAX][MAX], need[MAX][MAX];
     int avail[MAX], req[MAX], seq[MAX];
     char choice;
@@ -110,19 +111,31 @@ int main(void)
     for (int j = 0; j < r; j++)
         scanf("%d", &avail[j]);
 
-    calculateNeed(p, r, maxm, alloc, need);
-    checkSafety(p, r, alloc, need, avail, seq);
+    for (int i = 0; i < p; i++)
+        for (int j = 0; j < r; j++)
+            need[i][j] = maxm[i][j] - alloc[i][j];
+
+    if (!checkSafety(p, r, alloc, need, avail, seq, &count))
+    {
+        printf("\nInitial state is UNSAFE (deadlock possible). No requests can be processed.\n");
+        return 0;
+    }
+
+    printf("\nInitial state is SAFE.\nSafe sequence: ");
+    printSequence(seq,count);
 
     do
     {
-        printf("\nProcess no. and request for each resource: ");
+        printf("\nEnter process number (0 to %d): ", p - 1);
         scanf("%d", &pid);
+
+        printf("Enter request for each of %d resources: ", r);
         for (int j = 0; j < r; j++)
             scanf("%d", &req[j]);
 
-        requestResources(p, r, pid, req, alloc, need, avail);
+        requestResources(p, r,alloc, need, avail,pid ,req);
 
-        printf("Another request? (y/n): ");
+        printf("\nAnother request? (y/n): ");
         scanf(" %c", &choice);
     } while (choice == 'y' || choice == 'Y');
 
