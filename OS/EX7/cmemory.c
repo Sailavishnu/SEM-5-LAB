@@ -25,14 +25,14 @@ void reset(int n, int m, MemoryHole holes[], Process procs[])
         procs[i].allocatedHole = -1;
 }
 
-/* ascending = 1 -> Best Fit order, ascending = 0 -> Worst Fit order */
-void sortHoles(int n, MemoryHole holes[], int idx[], int ascending)
+/* flag = 1 -> Best Fit order, flag = 0 -> Worst Fit order */
+void sortHoles(int n, MemoryHole holes[], int idx[], int flag)
 {
     for (int i = 0; i < n - 1; i++)
         for (int j = 0; j < n - i - 1; j++)
         {
             int a = holes[idx[j]].size, b = holes[idx[j + 1]].size;
-            if ((ascending && a > b) || (!ascending && a < b))
+            if ((flag && a > b) || (!flag && a < b))
             {
                 int t = idx[j];
                 idx[j] = idx[j + 1];
@@ -55,14 +55,14 @@ void firstFit(int n, int m, MemoryHole holes[], Process procs[])
             }
 }
 
-void fitBySize(int n, int m, MemoryHole holes[], Process procs[], int ascending)
+void fitBySize(int n, int m, MemoryHole holes[], Process procs[], int flag)
 {
     int idx[MAX];
 
     reset(n, m, holes, procs);
     for (int j = 0; j < n; j++)
         idx[j] = j;
-    sortHoles(n, holes, idx, ascending);
+    sortHoles(n, holes, idx, flag);
 
     for (int i = 0; i < m; i++)
         for (int k = 0; k < n; k++)
