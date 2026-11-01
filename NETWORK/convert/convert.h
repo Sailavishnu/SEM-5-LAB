@@ -7,20 +7,3 @@ void str_to_ascii(const char *str, int *ascii_arr, int *len); /* string -> ASCII
 void ascii_to_str(const int *ascii_arr, int len, char *str);  /* ASCII ints -> string */
 
 #endif
-
-
-
-
-
-
-
-
-
-
-                
-
-
-
-
-
-
